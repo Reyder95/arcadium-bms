@@ -46,5 +46,8 @@ def rank_for(elo):
         "division": calculate_division(elo, index)
         }
 
+def sieg_to_elo(sieg):
+    return max(100, 200 + 50 * sieg)
+
 if __name__ == "__main__":
     print(rank_for(1000))

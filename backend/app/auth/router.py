@@ -74,9 +74,10 @@ class UserRatingOut(BaseModel):
     games_played: int
 
 class UserOut(BaseModel):
-    id: uuid.UUID
+    id: int
     username: str
     avatar_url: str | None
+    tachi_api_key: str | None
     ratings: list[UserRatingOut]
 
     model_config = {"from_attributes": True}
@@ -118,6 +119,8 @@ def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired or invalid")
 
     return user
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 # ROUTES
 

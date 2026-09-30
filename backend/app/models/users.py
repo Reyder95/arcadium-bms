@@ -13,7 +13,7 @@ class User(Base):
         Index("uq_users_email_lower", text("lower(email)"), unique=True),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[int] = mapped_column(primary_key=True)
     display_name: Mapped[str] = mapped_column(String(32))
     username: Mapped[str] = mapped_column(String(20))
     tachi_api_key: Mapped[str | None] = mapped_column(String(255))
@@ -44,7 +44,7 @@ class UserIdentity(Base):
     __table_args__ = (UniqueConstraint("provider", "provider_user_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     provider: Mapped[str] = mapped_column(String(32))

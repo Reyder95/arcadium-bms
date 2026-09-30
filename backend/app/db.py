@@ -1,5 +1,8 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
+from fastapi import Depends
+
+from typing import Annotated
 
 from app.config import settings
 
@@ -9,3 +12,5 @@ SessionLocal = sessionmaker(bind=engine)
 def get_db():
     with SessionLocal() as session:
         yield session
+
+DbSession = Annotated[Session, Depends(get_db)]
