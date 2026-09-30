@@ -19,6 +19,7 @@ class Chart(Base):
     playtype: Mapped[str] = mapped_column(String(8), index=True)
 
     table_levels: Mapped[list["ChartTableLevel"]] = relationship(back_populates="chart")
+    ratings: Mapped[list["ChartRating"]] = relationship(back_populates="chart")
 
 
 class ChartTableLevel(Base):
@@ -43,3 +44,5 @@ class ChartRating(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
         )
+
+    chart: Mapped[Chart] = relationship(back_populates="ratings")

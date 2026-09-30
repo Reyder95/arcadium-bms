@@ -3,11 +3,12 @@ import uuid
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,selectinload
 
 from app.auth.security import (
     hash_password,
@@ -18,7 +19,7 @@ from app.auth.security import (
 
 from app.config import settings
 from app.db import get_db
-from app.models import User, UserSession
+from app.models import User, UserSession, PlayerRating
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -60,10 +61,23 @@ class LoginIn(BaseModel):
     identifier: str # username or email
     password: str
 
+class UserRatingOut(BaseModel):
+    model_config = {"from_attributes": True}
+    game: str
+    playtype: str
+    ladder: str
+    rating: float
+    rd: float
+    volatility: float
+    display_rating: float
+    placed: bool
+    games_played: int
+
 class UserOut(BaseModel):
     id: uuid.UUID
     username: str
     avatar_url: str | None
+    ratings: list[UserRatingOut]
 
     model_config = {"from_attributes": True}
 
@@ -97,6 +111,7 @@ def get_current_user(
             UserSession.expires_at > func.now(),
             User.is_active.is_(True),
         )
+        .options(selectinload(User.ratings))
     )
 
     if user is None:
@@ -167,3 +182,12 @@ def logout(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+@router.put("/me/tachi_key", status_code=204)
+def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if (tachi_key == None or tachi_key == ""):
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Tachi key must not be empty!")
+
+    user.tachi_api_key = tachi_key
+    db.commit()
+    
