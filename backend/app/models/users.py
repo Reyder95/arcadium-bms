@@ -3,8 +3,10 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Index, ForeignKey, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import Base
+from app.models.matches import Match
 
 class User(Base):
     __tablename__ = "users"
@@ -22,6 +24,7 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     avatar_url: Mapped[str | None]
     is_active: Mapped[bool] = mapped_column(default=True)
+    rating_seeds: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -37,6 +40,10 @@ class User(Base):
 
     ratings: Mapped[list["PlayerRating"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+
+    matches: Mapped[list["Match"]] = relationship(
+        back_populates="user"
     )
 
 class UserIdentity(Base):

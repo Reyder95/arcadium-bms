@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy.orm import Session
 from typing import Annotated
-
-from sqlalchemy import delete, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload, Session
 
 from app.db import get_db
 from app.models import Chart, ChartRating, ChartTableLevel

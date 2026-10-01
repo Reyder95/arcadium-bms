@@ -1,10 +1,9 @@
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-
-from app.auth.router import CurrentUser
+from app.dependencies import CurrentUser
 from app.models import Job
 from app.db import DbSession
 

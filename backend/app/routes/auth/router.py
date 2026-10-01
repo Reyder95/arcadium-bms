@@ -1,30 +1,17 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-import uuid
-import re
 import unicodedata
-from datetime import datetime, timedelta, timezone
-from typing import Annotated
-
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session,selectinload
+from sqlalchemy.orm import Session
 
-from app.auth.security import (
-    hash_password,
-    hash_token,
-    new_session_token,
-    verify_password,
-)
-
-from app.config import settings
 from app.db import get_db
-from app.models import User, UserSession, PlayerRating
+from app.models import User, UserSession
+from app.dependencies import COOKIE_NAME, start_session, get_current_user
+from app.routes.jobs.enqueue import enqueue_tachi_seed
+from app.routes.auth.security import hash_password, hash_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-COOKIE_NAME = "session"
-DISPLAY_NAME_RE = re.compile(r"^[\w .\-'!?~★☆]{1,32}$")
 
 # SCHEMAS
 
@@ -83,44 +70,6 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 # SESSION HELPERS
-
-def start_session(db: Session, user: User, response: Response) -> None:
-    token = new_session_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.session_days)
-    db.add(UserSession(user_id=user.id, token_hash=hash_token(token), expires_at=expires_at))
-    response.set_cookie(
-        COOKIE_NAME,
-        token,
-        max_age=settings.session_days * 24 * 3600,
-        httponly=True,
-        samesite="lax",
-        secure=settings.cookie_secure
-    )
-
-def get_current_user(
-        session_token: str | None = Cookie(default=None, alias=COOKIE_NAME),
-        db: Session = Depends(get_db),
-) -> User:
-    if not session_token:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in!")
-
-    user = db.scalar(
-        select(User)
-        .join(UserSession)
-        .where(
-            UserSession.token_hash == hash_token(session_token),
-            UserSession.expires_at > func.now(),
-            User.is_active.is_(True),
-        )
-        .options(selectinload(User.ratings))
-    )
-
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired or invalid")
-
-    return user
-
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 # ROUTES
 
@@ -191,6 +140,11 @@ def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Sessio
     if (tachi_key == None or tachi_key == ""):
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Tachi key must not be empty!")
 
-    user.tachi_api_key = tachi_key
+    user.tachi_api_key = tachi_key.strip()
+    user.rating_seeds = {}
     db.commit()
+
+    enqueue_tachi_seed(db, user.id)    
+
+
     

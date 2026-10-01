@@ -1,8 +1,9 @@
-from sqlalchemy import ForeignKey, String, func, DateTime
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime
+from sqlalchemy import ForeignKey, String, func, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.matches import Match
 
 class Chart(Base):
     __tablename__ = "charts"
@@ -20,6 +21,7 @@ class Chart(Base):
 
     table_levels: Mapped[list["ChartTableLevel"]] = relationship(back_populates="chart")
     ratings: Mapped[list["ChartRating"]] = relationship(back_populates="chart")
+    matches: Mapped[list["Match"]] = relationship(back_populates="chart")
 
 
 class ChartTableLevel(Base):

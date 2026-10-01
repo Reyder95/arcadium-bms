@@ -1,5 +1,3 @@
-from bisect import bisect_right
-
 DEFAULT_VOLATILITY = 0.06
 
 SEED_RD = {
