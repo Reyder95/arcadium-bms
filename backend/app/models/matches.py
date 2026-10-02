@@ -36,7 +36,7 @@ class Match(Base):
     __table_args__ = (
         Index(
             "uq_matches_one_active",
-            "user_id", "game", "playtype", "ladder",
+            "user_id",
             unique=True,
             postgresql_where=text("status = 'active'")
         ),

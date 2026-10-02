@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.dependencies import CurrentUser
 from app.models import Job
@@ -9,7 +10,7 @@ from app.db import DbSession
 
 ACTIVE_STATUSES = ("pending", "running")
 
-def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None = None):
+def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None = None, run_after: datetime | None = None):
     payload = payload or {}
 
     existing = db.scalar(
@@ -24,7 +25,7 @@ def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None =
     if existing:
         return existing
 
-    job = Job(user_id=user_id, type=job_type, payload=payload)
+    job = Job(user_id=user_id, type=job_type, payload=payload, run_after=run_after if not None else func.now())
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -62,5 +63,20 @@ def get_job(job_id: int, user: CurrentUser, db: DbSession):
     job = db.get(Job, job_id)
     if job is None or job.user_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
+
+    return job
+
+@router.post("/{job_id}/retry", response_model=JobOut)
+def retry_job(job_id: int, user: CurrentUser, db: DbSession):
+    job = db.get(Job, job_id)
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    job.status = "pending"
+    job.run_after = func.now()
+    job.error = None
+
+    db.commit()
+    db.refresh(job)
 
     return job

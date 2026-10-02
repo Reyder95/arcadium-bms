@@ -63,6 +63,7 @@ def seed():
             "sha256": empty_to_none(row["sha256"]),
             "artist": empty_to_none(row["artist"]),
             "title": empty_to_none(row["title"]),
+            "subtitle": empty_to_none(row["subtitle"]),
             "sg_ec": to_float(row["sg_ec"]),
             "sg_hc": to_float(row["sg_hc"]),
             "game": "bms",

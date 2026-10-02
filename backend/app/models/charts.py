@@ -14,6 +14,7 @@ class Chart(Base):
     sha256: Mapped[str | None] = mapped_column(String(64), index=True)
     artist: Mapped[str | None]
     title: Mapped[str | None]
+    subtitle: Mapped[str | None]
     sg_ec: Mapped[float | None]
     sg_hc: Mapped[float | None]
     game: Mapped[str] = mapped_column(String(16), index=True)

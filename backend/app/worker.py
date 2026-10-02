@@ -13,8 +13,11 @@ IDLE_WAIT = 1
 def claim_next_job(db):
     job = db.scalar(
         select(Job)
-        .where(Job.status == "pending")
-        .order_by(Job.created_at)
+        .where(
+            Job.status == "pending",
+            Job.run_after <= func.now()
+            )
+        .order_by(Job.run_after)
         .limit(1)
         .with_for_update(skip_locked=True)
     )

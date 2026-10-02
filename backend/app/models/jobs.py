@@ -17,6 +17,9 @@ class Job(Base):
     result: Mapped[dict | None] = mapped_column(JSONB)
     error: Mapped[str | None]
     attempts: Mapped[int] = mapped_column(default=0)
+    run_after: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
