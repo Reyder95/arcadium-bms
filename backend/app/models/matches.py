@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 from enum import StrEnum
 from datetime import datetime
-from sqlalchemy import DateTime, Index, ForeignKey, String, UniqueConstraint, func, text, Enum as SAEnum
+from sqlalchemy import DateTime, Index, ForeignKey, String, UniqueConstraint, func, text, Enum as SAEnum, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -26,10 +26,14 @@ def str_enum(enum):
     return SAEnum(
         enum,
         native_enum=False,
-        create_constraint=True,
+        create_constraint=False,
         length=16,
-        value_callable=lambda e: [member.value for member in e]
+        values_callable=lambda e: [member.value for member in e]
     )
+
+def enum_check(column: str, enum_cls, name: str) -> CheckConstraint:
+    allowed = ", ".join(f"'{member.value}'" for member in enum_cls)
+    return CheckConstraint(f"{column} IN ({allowed})", name=name)
 
 class Match(Base):
     __tablename__ = "matches"
@@ -40,7 +44,10 @@ class Match(Base):
             unique=True,
             postgresql_where=text("status = 'active'")
         ),
+        enum_check("status", MatchStatus, "ck_matches_status"),
+        enum_check("result", MatchResult, "ck_matches_result")
     )
+
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
