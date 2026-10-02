@@ -1,0 +1,10 @@
+{
+    "name": "arcadium",
+    "private": true,
+    "scripts": {
+        "migrate": "docker compose exec backend alembic upgrade head",
+        "makemigration": "docker compose exec backend alembic revision --autogenerate -m",
+        "rollback": "docker compose exec backend alembic downgrade -1",
+        "seed": "docker compose exec backend python -m scripts.seed"
+    }
+}
