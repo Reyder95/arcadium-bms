@@ -3,7 +3,7 @@ import time
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
-from app.routes.jobs.handlers import HANDLERS, JobError
+from app.job.handlers import HANDLERS, JobError
 from app.models import Job
 
 REQUESTS_PER_MINUTE = 60

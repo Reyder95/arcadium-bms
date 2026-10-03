@@ -8,6 +8,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import Base
 from app.models.matches import Match
 
+# User Model -- Self explanatory. Handles all user basic information, their Tachi API key, and seeding for initial placements.
+
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
@@ -46,6 +48,8 @@ class User(Base):
         back_populates="user"
     )
 
+# UserIdentity Model -- Currently not in use, but meant for OAuth2 once that is implemented
+
 class UserIdentity(Base):
     __tablename__ = "user_identities"
     __table_args__ = (UniqueConstraint("provider", "provider_user_id"),)
@@ -63,6 +67,9 @@ class UserIdentity(Base):
 
     user: Mapped[User] = relationship(back_populates="identities")
 
+# UserSession -- Handles logged in user sessions. Keeps a cookie hash and a user ID, when a request is sent it 
+# checks the hash against the cookie (which gets hashed), and if the same, the user is logged in and can proceed.
+
 class UserSession(Base):
     __tablename__ = "user_sessions"
 
@@ -77,6 +84,8 @@ class UserSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="sessions")
+
+# PlayerRating Model - Handles a player's glicko2 rating. There is an internal rating, but I don't know if I want to use that. Keeping in place for now, though.
 
 class PlayerRating(Base):
     __tablename__ = "player_ratings"

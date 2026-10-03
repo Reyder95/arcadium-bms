@@ -6,89 +6,15 @@ from sqlalchemy import select, func
 from app.db import DbSession
 from app.models.matches import MatchResult, MatchStatus
 from app.models import Chart, ChartRating, Match
-from app.dependencies import CurrentUser
-from app.routes.jobs.handlers import get_or_create_player_rating, get_player_rating
-from app.routes.jobs.enqueue import enqueue_tachi_seed, enqueue_match_final_check, enqueue_match_pre_submission
+from app.util.dependencies import CurrentUser
+from app.job.handlers import get_or_create_player_rating, get_player_rating
+from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check, enqueue_match_pre_submission
+
+from app.schemas.match import MatchOut
 
 router = APIRouter(prefix="/match", tags=["match"])
 
 MATCH_DURATION = timedelta(minutes=12)
-
-class UserPublicOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    username: str
-    display_name: str
-
-class TableLevelsOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    table_icon: str
-    table_level: str
-
-class ChartRatingsOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    rating: float
-    ladder: str
-    rd: float
-    volatility: float
-    games_played: int
-    wins: int
-
-class ChartPublicOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    chart_id: str
-    song_id: str | None
-    md5: str | None
-    sha256: str | None
-    artist: str | None
-    title: str | None
-    subtitle: str | None
-    table_levels: list[TableLevelsOut]
-    ratings: list[ChartRatingsOut]
-
-
-class MatchOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    user: UserPublicOut
-    chart: ChartPublicOut
-    rating_change: float | None
-    ladder: str
-    game: str
-    playtype: str
-    result: MatchResult | None
-    status: MatchStatus
-    cancel_reason: str | None
-    player_display_before: float | None
-    player_display_after: float | None
-    chart_rating_before: float | None
-    chart_rating_after: float | None
-    start_time: datetime
-    cutoff_time: datetime
-    end_time: datetime | None
-
-    @model_validator(mode="after")
-    def keep_only_match_ladder(self):
-        self.chart.ratings = [r for r in self.chart.ratings if r.ladder == self.ladder]
-        return self
-
-class PlayerRatingOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    ladder: str
-    display_rating: float
-    placed: bool
-    games_played: int
-
-class CreateMatchOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    match: MatchOut
 
 def seed_rd(num_scores: int | None) -> float:
     if not num_scores:
@@ -109,7 +35,7 @@ def get_match_by_id(db: DbSession, match_id: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Match not found")
 
     return match
-@router.post("/create/{game}/{playtype}/{ladder}", response_model=CreateMatchOut, status_code=status.HTTP_201_CREATED)
+@router.post("/create/{game}/{playtype}/{ladder}", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
 def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser):
 
     rating_seed_key = f"{game}:{playtype}:{ladder}"
@@ -186,7 +112,7 @@ def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: Cur
     
 
     return {
-        "match": match
+        match
         }
 
 @router.post("/submit")
@@ -205,3 +131,7 @@ def submit_active_match(db: DbSession, user: CurrentUser):
     enqueue_match_pre_submission(db, user.id, active_match.id)
 
     return {"message": "Submitted"}
+
+@router.post("/skip")
+def skip_active_match(db: DbSession, user: CurrentUser):
+    pass

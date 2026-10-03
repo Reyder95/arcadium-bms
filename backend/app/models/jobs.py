@@ -5,6 +5,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import Base
 
+# Job Model -- The model for our jobs system. We have a worker that runs and handles jobs over time, every certain amount of ms (so we don't spam Tachi's API, or our own API).
+
 class Job(Base):
     __tablename__ = "jobs"
 

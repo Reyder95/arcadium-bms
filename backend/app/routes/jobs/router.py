@@ -1,46 +1,14 @@
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
-from datetime import datetime
+from sqlalchemy import func;
 
-from app.dependencies import CurrentUser
+from app.util.dependencies import CurrentUser
 from app.models import Job
 from app.db import DbSession
+from app.job.enqueue import enqueue_job
 
-ACTIVE_STATUSES = ("pending", "running")
-
-def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None = None, run_after: datetime | None = None):
-    payload = payload or {}
-
-    existing = db.scalar(
-        select(Job).where(
-            Job.user_id == user_id,
-            Job.type == job_type,
-            Job.payload == payload,
-            Job.status.in_(ACTIVE_STATUSES)
-        )
-    )
-
-    if existing:
-        return existing
-
-    job = Job(user_id=user_id, type=job_type, payload=payload, run_after=run_after if not None else func.now())
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
+from app.schemas.job import JobOut
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
-
-class JobOut(BaseModel):
-    model_config = {"from_attributes": True}
-
-    id: int
-    type: str
-    status: str
-    result: dict | None
-    error: str | None
 
 def check_tachi_key(user: CurrentUser):
     if not user.tachi_api_key:

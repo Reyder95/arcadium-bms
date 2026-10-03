@@ -2,6 +2,11 @@
     "name": "arcadium",
     "private": true,
     "scripts": {
+        "start": "docker compose up -d",
+        "start-verbose": "docker compose up",
+        "build": "docker compose up -d --build",
+        "build-verbose": "docker compose up --build",
+        "stop": "docker compose down", 
         "migrate": "docker compose exec backend alembic upgrade head",
         "makemigration": "docker compose exec backend alembic revision --autogenerate -m",
         "rollback": "docker compose exec backend alembic downgrade -1",

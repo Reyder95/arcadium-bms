@@ -5,35 +5,14 @@ if TYPE_CHECKING:
     from app.models.charts import Chart
     from app.models.users import User
 
-from enum import StrEnum
 from datetime import datetime
-from sqlalchemy import DateTime, Index, ForeignKey, String, UniqueConstraint, func, text, Enum as SAEnum, CheckConstraint
+from sqlalchemy import DateTime, Index, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.util.enums import MatchStatus, MatchResult, enum_check, str_enum
 
-class MatchResult(StrEnum):
-    WIN = "win"
-    LOSS = "loss"
-
-class MatchStatus(StrEnum):
-    ACTIVE = "active"
-    RESOLVED = "resolved"
-    EXPIRED = "expired"
-    CANCELLED = "cancelled"
-
-def str_enum(enum):
-    return SAEnum(
-        enum,
-        native_enum=False,
-        create_constraint=False,
-        length=16,
-        values_callable=lambda e: [member.value for member in e]
-    )
-
-def enum_check(column: str, enum_cls, name: str) -> CheckConstraint:
-    allowed = ", ".join(f"'{member.value}'" for member in enum_cls)
-    return CheckConstraint(f"{column} IN ({allowed})", name=name)
+# Match Model -- Players compete in matches. One player versus a chart. Each player can only have one active match at a time across all ladders.
 
 class Match(Base):
     __tablename__ = "matches"

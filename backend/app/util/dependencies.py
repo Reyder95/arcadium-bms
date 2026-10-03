@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.routes.auth.security import hash_token, new_session_token
+from app.util.security import hash_token, new_session_token
 from app.db import get_db
 from app.models import User, UserSession
 from app.config import settings

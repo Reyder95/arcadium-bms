@@ -1,77 +1,17 @@
-import unicodedata
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import User, UserSession
-from app.dependencies import COOKIE_NAME, start_session, get_current_user
-from app.routes.jobs.enqueue import enqueue_tachi_seed
-from app.routes.auth.security import hash_password, hash_token, verify_password
+from app.util.dependencies import COOKIE_NAME, start_session, get_current_user
+from app.job.enqueue import enqueue_tachi_seed
+from app.util.security import hash_password, hash_token, verify_password
+
+from app.schemas.auth import UserOut, RegisterIn, LoginIn
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-# SCHEMAS
-
-class RegisterIn(BaseModel):
-    username: str = Field(pattern=r"^[A-Za-z0-9_]{3,20}$")
-    email: EmailStr
-    display_name: str | None = None
-    password: str = Field(min_length=8, max_length=128)
-
-    @field_validator("display_name")
-    @classmethod
-    def clean_display_name(cls, value: str | None) -> str:
-        if value is None:
-            return None
-        value = unicodedata.normalize("NFC", value)
-        value = " ".join(value.split())
-
-        if not value:
-            return None
-
-        if not DISPLAY_NAME_RE.fullmatch(value):
-            raise ValueError("Display name can use letters, numbers, spaces and - ' ! ? ~ ★ ☆ (1–32 characters)")
-        return value
-
-    @model_validator(mode="after")
-    def default_display_name(self):
-        if self.display_name is None:
-            self.display_name = self.username
-        return self
-        
-
-
-class LoginIn(BaseModel):
-    identifier: str # username or email
-    password: str
-
-class UserRatingOut(BaseModel):
-    model_config = {"from_attributes": True}
-    game: str
-    playtype: str
-    ladder: str
-    rating: float
-    rd: float
-    volatility: float
-    display_rating: float
-    placed: bool
-    games_played: int
-
-class UserOut(BaseModel):
-    id: int
-    username: str
-    avatar_url: str | None
-    tachi_api_key: str | None
-    ratings: list[UserRatingOut]
-
-    model_config = {"from_attributes": True}
-
-# SESSION HELPERS
-
-# ROUTES
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterIn, response: Response, db: Session = Depends(get_db)):
@@ -134,6 +74,8 @@ def logout(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+# Allows a user to link their tachi account. Once this is done, a job is queued to seed them behind the scenes.
 
 @router.put("/me/tachi_key", status_code=204)
 def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

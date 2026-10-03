@@ -1,0 +1,33 @@
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from app.schemas.auth import UserOut
+from app.schemas.chart import ChartOut
+
+from app.util.enums import MatchResult, MatchStatus
+
+class MatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user: UserOut
+    chart: ChartOut
+    rating_change: float | None
+    ladder: str
+    game: str
+    playtype: str
+    result: MatchResult | None
+    status: MatchStatus
+    cancel_reason: str | None
+    player_display_before: float | None
+    player_display_after: float | None
+    chart_rating_before: float | None
+    chart_rating_after: float | None
+    start_time: datetime
+    cutoff_time: datetime
+    end_time: datetime | None
+
+    @model_validator(mode="after")
+    def keep_only_match_ladder(self):
+        self.chart.ratings = [r for r in self.chart.ratings if r.ladder == self.ladder]
+        return self

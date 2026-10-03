@@ -1,38 +1,14 @@
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict
 from typing import Annotated
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, Session
 
 from app.db import get_db
-from app.models import Chart, ChartRating, ChartTableLevel
+from app.models import Chart, ChartRating
+
+from app.schemas.chart import ChartOut
 
 router = APIRouter(prefix="/chart", tags=["chart"])
-
-class ChartLevelOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    table_icon: str
-    table_level: str
-
-class ChartRatingOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    ladder: str
-    rating: float
-    rd: float
-    games_played: int
-
-class ChartOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    chart_id: str
-    title: str | None
-    artist: str | None
-    sg_ec: float | None
-    sg_hc: float | None
-    ratings: list[ChartRatingOut]
-    table_levels: list[ChartLevelOut]
 
 @router.get("", response_model=list[ChartOut])
 def get_charts(

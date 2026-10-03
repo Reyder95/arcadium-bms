@@ -5,6 +5,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 from app.models.matches import Match
 
+# Chart Model -- A chart can be considered a single "difficulty" for a song within rhythm games. It handles the notes 
+# and the basic metadata. chart_id and song_id (as well as some other attributes) are based on Tachi's ID systems. For
+# additional ID handling, we also store md5 and sha256.
+
 class Chart(Base):
     __tablename__ = "charts"
 
@@ -24,6 +28,7 @@ class Chart(Base):
     ratings: Mapped[list["ChartRating"]] = relationship(back_populates="chart")
     matches: Mapped[list["Match"]] = relationship(back_populates="chart")
 
+# ChartTableLevel Model -- This is specific to BMS, and maybe USC (or other games with difficulty tables). Connects a chart to the various difficulty tables that you can find the chart in.
 
 class ChartTableLevel(Base):
     __tablename__ = "chart_table_levels"
@@ -33,6 +38,8 @@ class ChartTableLevel(Base):
     table_level: Mapped[str]
 
     chart: Mapped[Chart] = relationship(back_populates="table_levels")
+
+# ChartRating Model -- Handles a chart's rating (ELO) in a given ladder. We use glicko2, so we have rd (rating deviation), and volatility, along with rating.
 
 class ChartRating(Base):
     __tablename__ = "chart_ratings"
