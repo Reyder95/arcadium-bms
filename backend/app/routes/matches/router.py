@@ -4,10 +4,10 @@ from sqlalchemy import select, func
 from datetime import datetime, timezone
 
 from app.db import DbSession
-from app.util.enums import CancelReason, MatchStatus
+from app.util.enums import CancelReason, MatchStatus, MatchResult
 from app.models import Match, UserAvoidedChart
 from app.util.dependencies import CurrentUser
-from app.util.helpers import create_match_helper
+from app.util.helpers import create_match_helper, get_active_match
 from app.job.enqueue import enqueue_match_pre_submission
 
 from app.schemas.match import MatchOut
@@ -24,19 +24,18 @@ def get_match_by_id(db: DbSession, match_id: int):
     return match
 @router.post("/create/{game}/{playtype}/{ladder}", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
 def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser):
+    active_match = get_active_match(db, user)
+
+    if active_match is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "You already have an active match!")
+
     new_match = create_match_helper(game, playtype, ladder, db, user)
     db.commit()
     return new_match
 
 @router.post("/submit")
 def submit_active_match(db: DbSession, user: CurrentUser):
-    active_match = db.scalar(
-        select(Match)
-        .where(
-            Match.user_id == user.id,
-            Match.status == MatchStatus.ACTIVE
-        )
-    )
+    active_match = get_active_match(db, user)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
@@ -47,14 +46,7 @@ def submit_active_match(db: DbSession, user: CurrentUser):
 
 @router.post("/skip", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
 def skip_active_match(db: DbSession, user: CurrentUser):
-    active_match = db.scalar(
-        select(Match)
-        .where(
-            Match.user_id == user.id,
-            Match.status == MatchStatus.ACTIVE
-        )
-        .with_for_update()
-    )
+    active_match = get_active_match(db, user)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
@@ -72,6 +64,21 @@ def skip_active_match(db: DbSession, user: CurrentUser):
     db.commit()
 
     return new_match
+
+@router.post("/forfeit", response_model=MatchOut, status_code=status.HTTP_200_OK)
+def forfeit_active_match(db: DbSession, user: CurrentUser):
+    active_match = get_active_match(db, user)
+
+    if active_match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
+
+    active_match.status = MatchStatus.RESOLVED
+    active_match.result = MatchResult.LOSS
+    active_match.end_time = datetime.now()
+
+    db.commit()
+
+    return active_match
 
 @router.get("/{user_id}/table", response_class=HTMLResponse)
 def serve_user_table_index(db: DbSession, user_id: int):

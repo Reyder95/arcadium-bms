@@ -7,6 +7,7 @@ from app.util.dependencies import CurrentUser
 from app.job.handlers import get_or_create_player_rating, get_player_rating
 from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check
 from app.models import Chart, ChartRating, Match
+from app.util.enums import MatchStatus
 
 MATCH_DURATION = timedelta(minutes=12)
 
@@ -96,3 +97,15 @@ def create_match_helper(game: str, playtype: str, ladder: str, db: DbSession, us
     
 
     return match
+
+def get_active_match(db: DbSession, user: CurrentUser):
+    active_match = db.scalar(
+        select(Match)
+        .where(
+            Match.user_id == user.id,
+            Match.status == MatchStatus.ACTIVE
+        )
+        .with_for_update()
+    )
+
+    return active_match
