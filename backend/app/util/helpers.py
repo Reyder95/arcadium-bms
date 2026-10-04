@@ -7,7 +7,7 @@ from app.util.dependencies import CurrentUser
 from app.job.handlers import get_or_create_player_rating, get_player_rating
 from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check
 from app.models import Chart, ChartRating, Match
-from app.util.enums import MatchStatus
+from app.util.enums import MatchStatus, MatchType
 
 MATCH_DURATION = timedelta(minutes=12)
 
@@ -22,7 +22,7 @@ def seed_rd(num_scores: int | None) -> float:
         return 160.0
     return 130.0
 
-def create_match_helper(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser, avoided_chart_ids: list[str] = []):
+def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, elo: float | None, db: DbSession, user: CurrentUser, avoided_chart_ids: list[str] = []):
     rating_seed_key = f"{game}:{playtype}:{ladder}"
 
     if rating_seed_key not in user.rating_seeds and get_player_rating(db, user.id, game, playtype, ladder) is None:
@@ -44,6 +44,11 @@ def create_match_helper(game: str, playtype: str, ladder: str, db: DbSession, us
         seed_rd(seed["numScores"]) if seed else None
         )
 
+    search_rating = rating.rating
+
+    if (type == MatchType.CASUAL and elo is not None):
+        search_rating = elo
+
     max_window = 250
     curr_window = 100
     window_increment = 50
@@ -55,8 +60,8 @@ def create_match_helper(game: str, playtype: str, ladder: str, db: DbSession, us
             .join(ChartRating)
             .where(
                 ChartRating.ladder == ladder,
-                ChartRating.rating >= max(100, rating.rating - curr_window),
-                ChartRating.rating <= rating.rating + curr_window,
+                ChartRating.rating >= max(100, search_rating - curr_window),
+                ChartRating.rating <= search_rating + curr_window,
                 Chart.chart_id.not_in(avoided_chart_ids)
             ).order_by(func.random())
             .limit(1)
@@ -82,6 +87,8 @@ def create_match_helper(game: str, playtype: str, ladder: str, db: DbSession, us
         chart_id=random_chart.chart_id, 
         ladder=ladder, 
         game=game, 
+        type=type,
+        search_elo=search_rating,
         playtype=playtype,
         player_mmr_before=rating.rating,
         player_display_before=rating.display_rating,

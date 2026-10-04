@@ -1,10 +1,11 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func
 from datetime import datetime, timezone
+from typing import Annotated
 
 from app.db import DbSession
-from app.util.enums import CancelReason, MatchStatus, MatchResult
+from app.util.enums import CancelReason, MatchStatus, MatchResult, MatchType
 from app.models import Match, UserAvoidedChart
 from app.util.dependencies import CurrentUser
 from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid
@@ -22,14 +23,14 @@ def get_match_by_id(db: DbSession, match_id: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Match not found")
 
     return match
-@router.post("/create/{game}/{playtype}/{ladder}", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
-def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser):
+@router.post("/create", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
+def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser, elo: Annotated[float | None, Query(ge=100, le=2050)] = None, type: MatchType = MatchType.COMPETITIVE):
     active_match = get_active_match(db, user)
 
     if active_match is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "You already have an active match!")
 
-    new_match = create_match_helper(game, playtype, ladder, db, user)
+    new_match = create_match_helper(game, playtype, ladder, type, elo, db, user)
     db.commit()
     return new_match
 

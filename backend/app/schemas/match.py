@@ -19,6 +19,7 @@ class MatchOut(BaseModel):
     result: MatchResult | None
     status: MatchStatus
     type: MatchType
+    search_elo: float
     cancel_reason: str | None
     player_display_before: float | None
     player_display_after: float | None
