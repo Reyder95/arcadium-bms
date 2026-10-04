@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from app.schemas.auth import UserOut
 from app.schemas.chart import ChartOut
 
-from app.util.enums import MatchResult, MatchStatus
+from app.util.enums import MatchResult, MatchStatus, MatchType
 
 class MatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -18,6 +18,7 @@ class MatchOut(BaseModel):
     playtype: str
     result: MatchResult | None
     status: MatchStatus
+    type: MatchType
     cancel_reason: str | None
     player_display_before: float | None
     player_display_after: float | None

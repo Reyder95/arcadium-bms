@@ -7,7 +7,7 @@ from app.db import DbSession
 from app.util.enums import CancelReason, MatchStatus, MatchResult
 from app.models import Match, UserAvoidedChart
 from app.util.dependencies import CurrentUser
-from app.util.helpers import create_match_helper, get_active_match
+from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid
 from app.job.enqueue import enqueue_match_pre_submission
 
 from app.schemas.match import MatchOut
@@ -105,11 +105,27 @@ def serve_header_table_data(db: DbSession, user_id: int):
         }
 
 @router.get("/{user_id}/table/data.json")
-def serve_data_table_data(db: DbSession):
-    return [{
+def serve_data_table_data(db: DbSession, user_id: int):
+
+    chart_data = [{
         "md5": "7aee705ad2b6e16eb7d50d29dca5acb2",
         "sha256": "c9bf5cecbd61752832a02df8fc4f04064d09167adfa46615b98a2cc65d6c0fe1",
-        "level": "EC",
+        "level": "⚔EC",
         "title": "MASAMUNE (obj:LAPIS)",
         "artist": "NS-Factory"
     }]
+
+    active_match = get_active_match_by_userid(db, user_id)
+
+    if active_match is None:
+        return chart_data
+
+    chart_data = [{
+        "md5": active_match.chart.md5,
+        "sha256": active_match.chart.sha256,
+        "level": f"⚔{active_match.ladder.upper()}",
+        "title": active_match.chart.title,
+        "artist": active_match.chart.artist
+    }]
+
+    return chart_data

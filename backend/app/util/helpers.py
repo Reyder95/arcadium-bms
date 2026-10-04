@@ -109,3 +109,15 @@ def get_active_match(db: DbSession, user: CurrentUser):
     )
 
     return active_match
+
+def get_active_match_by_userid(db: DbSession, user_id: int):
+    active_match = db.scalar(
+        select(Match)
+        .where(
+            Match.user_id == user_id,
+            Match.status == MatchStatus.ACTIVE
+        )
+        .with_for_update()
+    )
+
+    return active_match
