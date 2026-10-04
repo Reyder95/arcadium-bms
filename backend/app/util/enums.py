@@ -11,6 +11,9 @@ class MatchStatus(StrEnum):
     EXPIRED = "expired"
     CANCELLED = "cancelled"
 
+class CancelReason(StrEnum):
+    NO_CHART = "No Chart"
+
 # Creates a column type for the database that can take in an enum, store it as plaintext, and then retrieve it as an enum for use in code
 
 def str_enum(enum_cls):

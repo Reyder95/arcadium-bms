@@ -18,13 +18,17 @@ def check_tachi_key(user: CurrentUser):
 def request_tachi_recent_score(user: CurrentUser, db: DbSession):
     check_tachi_key(user)
 
-    return enqueue_job(db, user.id, "tachi_recent_score", {"playtype": "7k"})
+    job = enqueue_job(db, user.id, "tachi_recent_score", {"playtype": "7k"})
+    db.commit()
+    return job
 
 @router.post("/tachi-rating", response_model=JobOut, status_code=status.HTTP_202_ACCEPTED)
 def request_tachi_rating(user: CurrentUser, db: DbSession):
     check_tachi_key(user)
 
-    return enqueue_job(db, user.id, "tachi_rating", {"playtype": "7k"})
+    job = enqueue_job(db, user.id, "tachi_rating", {"playtype": "7k"})
+    db.commit()
+    return job
 
 @router.get("/{job_id}", response_model=JobOut)
 def get_job(job_id: int, user: CurrentUser, db: DbSession):

@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import Base
 from app.models.matches import Match
+from app.models.charts import Chart
 
 # User Model -- Self explanatory. Handles all user basic information, their Tachi API key, and seeding for initial placements.
 
@@ -46,6 +47,10 @@ class User(Base):
 
     matches: Mapped[list["Match"]] = relationship(
         back_populates="user"
+    )
+
+    avoided_charts: Mapped[list["UserAvoidedChart"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
 # UserIdentity Model -- Currently not in use, but meant for OAuth2 once that is implemented
@@ -112,3 +117,14 @@ class PlayerRating(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="ratings")
+
+class UserAvoidedChart(Base):
+    __tablename__ = "user_avoided_charts"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), primary_key=True
+    )
+    chart_id: Mapped[str] = mapped_column(
+        ForeignKey("charts.chart_id", ondelete="CASCADE"), primary_key=True
+    )
+    user: Mapped["User"] = relationship(back_populates="avoided_charts")
+    chart: Mapped["Chart"] = relationship()

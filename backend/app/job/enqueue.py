@@ -23,7 +23,7 @@ def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None =
 
     job = Job(user_id=user_id, type=job_type, payload=payload, run_after=run_after if not None else func.now())
     db.add(job)
-    db.commit()
+    db.flush()
     db.refresh(job)
     return job
 
