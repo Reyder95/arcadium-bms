@@ -43,6 +43,8 @@ def submit_active_match(db: DbSession, user: CurrentUser):
 
     enqueue_match_pre_submission(db, user.id, active_match.id)
 
+    db.commit()
+
     return {"message": "Submitted"}
 
 @router.post("/skip", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
@@ -60,7 +62,7 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     db.flush()
 
-    new_match = create_match_helper(active_match.game, active_match.playtype, active_match.ladder, db, user, [a.chart_id for a in user.avoided_charts])
+    new_match = create_match_helper(active_match.game, active_match.playtype, active_match.ladder, active_match.type, active_match.search_elo, db, user, [a.chart_id for a in user.avoided_charts])
 
     db.commit()
 

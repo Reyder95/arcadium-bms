@@ -33,6 +33,13 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
         )
 
     seed = user.rating_seeds.get(rating_seed_key)
+    elo_rating = seed["elo"] if seed else 100
+
+    if ladder == "ec":
+        elo_rating = elo_rating - 150
+
+    if ladder == "hc":
+        elo_rating = elo_rating - 300
     
     rating = get_or_create_player_rating(
         db,
@@ -40,7 +47,7 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
         ladder, 
         game, 
         playtype, 
-        seed["elo"] if seed else None, 
+        elo_rating, 
         seed_rd(seed["numScores"]) if seed else None
         )
 
@@ -49,7 +56,7 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
     if (type == MatchType.CASUAL and elo is not None):
         search_rating = elo
 
-    max_window = 250
+    max_window = 300
     curr_window = 100
     window_increment = 50
     random_chart = None
@@ -101,7 +108,6 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
     db.refresh(rating)
 
     enqueue_match_final_check(db, user.id, match.id, match.cutoff_time)
-    
 
     return match
 

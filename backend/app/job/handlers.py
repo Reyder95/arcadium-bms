@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.models import User, Match
 from app.tachi import tachi_get
-from app.ratings import sieg_to_elo
+from app.ratings import sieg_to_elo, GlickoRating, update
 from app.db import Session
 from app.models import PlayerRating
 
@@ -27,6 +27,8 @@ class ClearTypes(StrEnum):
     EASY_CLEAR = "EASY CLEAR"
     CLEAR = "CLEAR"
     HARD_CLEAR = "HARD CLEAR"
+    EX_HARD_CLEAR = "EX HARD CLEAR"
+    FULL_COMBO = "FULL COMBO"
 
 LAMP_ORDER = [
     ClearTypes.NO_PLAY,
@@ -34,7 +36,9 @@ LAMP_ORDER = [
     ClearTypes.ASSIST_CLEAR,
     ClearTypes.EASY_CLEAR,
     ClearTypes.CLEAR,
-    ClearTypes.HARD_CLEAR
+    ClearTypes.HARD_CLEAR,
+    ClearTypes.EX_HARD_CLEAR,
+    ClearTypes.FULL_COMBO
 ]
 
 LAMP_RANK = {lamp: i for i, lamp in enumerate(LAMP_ORDER)}
@@ -53,11 +57,24 @@ def resolve_match(db, match_id: int, score: dict | None) -> dict:
     player = get_player_rating(db, match.user_id, match.game, match.playtype, match.ladder)
     chart = get_chart_rating(db, match.chart_id, match.ladder)
 
-    # calculate player rating via glicko2
-    # calculate chart rating via glicko2
+    s = float(won)
 
-    # apply updates to player
-    # apply updates to chart
+    player_old = GlickoRating(player.display_rating, player.rd, player.volatility)
+    chart_old = GlickoRating(chart.rating, chart.rd, chart.volatility)
+
+    player_new = update(player_old, chart_old, s)
+    chart_new = update(chart_old, player_old, 1 - s)
+
+    player.display_rating = player_new.rating
+    player.rating = player_new.rating
+    player.rd = player_new.rd
+    player.volatility = player_new.volatility
+    player.games_played += 1
+
+    chart.rating = chart_new.rating
+    chart.rd = chart_new.rd
+    chart.volatility = chart_new.volatility
+    chart.games_played += 1
 
     match.status = MatchStatus.RESOLVED
     match.result = MatchResult.WIN if won else MatchResult.LOSS
@@ -104,6 +121,7 @@ def save_seed_ratings(user, playtype: str, profile: dict) -> dict:
     if value is not None:
         seeds[f"bms:{playtype}:ec"] = { "elo": sieg_to_elo(value), "numScores": scores }
         seeds[f"bms:{playtype}:hc"] = { "elo": sieg_to_elo(value), "numScores": scores }
+        print(seeds)
     else:
         seeds[f"bms:{playtype}:ec"] = None
         seeds[f"bms:{playtype}:hc"] = None

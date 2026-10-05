@@ -84,9 +84,10 @@ def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Sessio
 
     user.tachi_api_key = tachi_key.strip()
     user.rating_seeds = {}
-    db.commit()
 
     enqueue_tachi_seed(db, user.id)    
+
+    db.commit()
 
 
     
