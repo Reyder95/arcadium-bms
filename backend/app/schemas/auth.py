@@ -45,6 +45,8 @@ class UserRatingOut(BaseModel):
     games_played: int
     rank: int
     total: int
+    wins: int
+    losses: int
 
 class UserOut(BaseModel):
     id: int

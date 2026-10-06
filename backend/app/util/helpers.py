@@ -7,7 +7,7 @@ from app.util.dependencies import CurrentUser
 from app.job.handlers import get_or_create_player_rating, get_player_rating
 from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check
 from app.models import Chart, ChartRating, Match, PlayerRating
-from app.util.enums import MatchStatus, MatchType
+from app.util.enums import MatchStatus, MatchType, MatchResult
 
 MATCH_DURATION = timedelta(minutes=12)
 
@@ -135,7 +135,7 @@ def get_active_match_by_userid(db: DbSession, user_id: int):
 
     return active_match
 
-def get_standing(db, r):
+def get_standing(db, r, user_id):
     total = db.scalar(
         select(func.count())
         .select_from(PlayerRating)
@@ -157,4 +157,30 @@ def get_standing(db, r):
         )
     ) + 1
 
-    return rank, total
+    wins = db.scalar(
+        select(func.count())
+        .select_from(Match)
+        .where(
+            Match.user_id == user_id,
+            Match.result == MatchResult.WIN,
+            Match.type == MatchType.COMPETITIVE,
+            Match.game == r.game,
+            Match.playtype == r.playtype,
+            Match.ladder == r.ladder
+        )
+    )
+
+    losses = db.scalar(
+        select(func.count())
+        .select_from(Match)
+        .where(
+            Match.user_id == user_id,
+            Match.result == MatchResult.LOSS,
+            Match.type == MatchType.COMPETITIVE,
+            Match.game == r.game,
+            Match.playtype == r.playtype,
+            Match.ladder == r.ladder
+        )
+    )
+
+    return rank, total, wins, losses

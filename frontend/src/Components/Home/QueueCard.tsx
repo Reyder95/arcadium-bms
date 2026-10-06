@@ -4,8 +4,13 @@ import rankedIcon from "../../assets/ranked_icons/Diamond-cropped.png";
 import { Button } from "@headlessui/react";
 import { CircleArrowOutUpRight, Podium } from "lucide-react";
 import ProgressBar from "../General/ProgressBar";
+import type { UserRating } from "../../util/NetworkModels";
 
-export default function QueueCard() {
+interface QueueCardProps {
+    rating: UserRating
+}
+
+export default function QueueCard(props: QueueCardProps) {
     const { user, loading } = useAuth();
 
     return loading ? (
@@ -14,7 +19,7 @@ export default function QueueCard() {
         <>
             <div className="w-1/4 bg-background-dark p-5 rounded-md flex flex-col">
                 <p className="text-center font-bold text-2xl mb-5">
-                    BMS Hard Clear Ladder
+                    {props.rating.ladder == "ec" ? "BMS Easy Clear Ladder" : "BMS Hard Clear Ladder"}
                 </p>
 
                 <div className="flex flex-row justify-center items-center">

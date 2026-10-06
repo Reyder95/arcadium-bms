@@ -7,7 +7,7 @@ from app.db import get_db, DbSession
 from app.models import User, UserSession, Match
 from app.util.helpers import get_standing
 from app.util.dependencies import COOKIE_NAME, start_session, get_current_user, CurrentUser
-from app.util.enums import MatchResult
+from app.util.enums import MatchResult, MatchType
 from app.job.enqueue import enqueue_tachi_seed
 from app.util.security import hash_password, hash_token, verify_password
 
@@ -91,48 +91,3 @@ def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Sessio
     enqueue_tachi_seed(db, user.id)    
 
     db.commit()
-
-@router.get("/me/ratings", response_model=list[UserRatingOut])
-def get_user_ratings(db: DbSession, user: CurrentUser):
-    results = []
-    
-    for rating in user.ratings:
-        rank, total = get_standing(db, rating)
-
-        results.append({
-            "game": rating.game,
-            "playtype": rating.playtype,
-            "ladder": rating.ladder,
-            "display_rating": rating.display_rating,
-            "placed": rating.placed,
-            "games_played": rating.games_played,
-            "rank": rank,
-            "total": total
-        })
-
-    return results
-
-@router.get("/me/match_stats", response_model=MatchDataOut)
-def get_match_statistics(db: DbSession, user: CurrentUser):
-    wins = db.scalar(
-        select(func.count())
-        .select_from(Match)
-        .where(
-            Match.user_id == user.id,
-            Match.result == MatchResult.WIN
-        )
-    )
-
-    losses = db.scalar(
-        select(func.count())
-        .select_from(Match)
-        .where(
-            Match.user_id == user.id,
-            Match.result == MatchResult.LOSS
-        )
-    )
-
-    return {
-        "wins": wins,
-        "losses": losses
-    }
