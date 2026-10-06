@@ -46,6 +46,7 @@ class UserRatingOut(BaseModel):
 
 class UserOut(BaseModel):
     id: int
+    display_name: str
     username: str
     avatar_url: str | None
     ratings: list[UserRatingOut]
