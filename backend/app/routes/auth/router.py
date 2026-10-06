@@ -4,13 +4,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db, DbSession
-from app.models import User, UserSession
+from app.models import User, UserSession, Match
 from app.util.helpers import get_standing
 from app.util.dependencies import COOKIE_NAME, start_session, get_current_user, CurrentUser
+from app.util.enums import MatchResult
 from app.job.enqueue import enqueue_tachi_seed
 from app.util.security import hash_password, hash_token, verify_password
 
 from app.schemas.auth import UserOut, RegisterIn, LoginIn, UserRatingOut
+from app.schemas.match import MatchDataOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -109,3 +111,28 @@ def get_user_ratings(db: DbSession, user: CurrentUser):
         })
 
     return results
+
+@router.get("/me/match_stats", response_model=MatchDataOut)
+def get_match_statistics(db: DbSession, user: CurrentUser):
+    wins = db.scalar(
+        select(func.count())
+        .select_from(Match)
+        .where(
+            Match.user_id == user.id,
+            Match.result == MatchResult.WIN
+        )
+    )
+
+    losses = db.scalar(
+        select(func.count())
+        .select_from(Match)
+        .where(
+            Match.user_id == user.id,
+            Match.result == MatchResult.LOSS
+        )
+    )
+
+    return {
+        "wins": wins,
+        "losses": losses
+    }

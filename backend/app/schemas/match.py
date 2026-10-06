@@ -33,3 +33,9 @@ class MatchOut(BaseModel):
     def keep_only_match_ladder(self):
         self.chart.ratings = [r for r in self.chart.ratings if r.ladder == self.ladder]
         return self
+
+class MatchDataOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    wins: int
+    losses: int
