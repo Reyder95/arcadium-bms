@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, func
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
 from app.db import DbSession
@@ -54,6 +54,11 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
+
+    skip_limit_time = active_match.start_time + timedelta(minutes=0.5)
+
+    if datetime.now(timezone.utc) > skip_limit_time:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not within the allotted time to skip match!")
 
     active_match.status = MatchStatus.CANCELLED
     active_match.cancel_reason = CancelReason.NO_CHART

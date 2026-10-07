@@ -26,7 +26,7 @@ export default function MatchPage() {
     const [match, setMatch] = useState<Match | null>();
     const [tiers, setTiers] = useState<Tier[]>([]);
 
-    const { msLeft, finished } = useCountdown(match?.cutoff_time)
+    const { msLeft, finished, skipFinished, skipMsLeft } = useCountdown(match?.cutoff_time, match?.start_time)
 
     useEffect(() => {
         Promise.all([
@@ -142,7 +142,7 @@ export default function MatchPage() {
                     {formatTime(msLeft)}
                 </p>
             </div>
-            <div className="w-1/2 bg-foreground p-5 rounded-md flex flex-row gap-7 relative">
+            <div className="w-1/2 bg-background-dark border-zinc-500 border p-5 rounded-md flex flex-row gap-7 relative">
                 <div className="absolute -right-3 -top-3">
                     <Button
                     onClick={handleForfeit}
@@ -182,7 +182,7 @@ export default function MatchPage() {
                     </div>
                 <div className="col-span-3 w-full flex justify-end">
                     <div className="flex flex-row gap-5">
-                        <Button onClick={handleSkip} className="font-sanchez inline-flex items-center gap-2 bg-zinc-500 brightness-80 hover:brightness-100 duration-200 cursor-pointer p-3 rounded-sm font-semibold">Skip <Send className="size-4"/></Button>
+                        <Button disabled={skipFinished} onClick={handleSkip} className="font-sanchez inline-flex items-center gap-2 bg-zinc-500 brightness-80 hover:brightness-100 duration-200 cursor-pointer p-3 rounded-sm font-semibold">Skip <Send className="size-4"/></Button>
                         <Button onClick={handleSubmit} className="font-sanchez inline-flex items-center gap-2 bg-highlight brightness-80 hover:brightness-100 duration-200 cursor-pointer p-3 rounded-sm font-semibold">Submit <Send className="size-4"/></Button>
                     </div>
                 </div>
