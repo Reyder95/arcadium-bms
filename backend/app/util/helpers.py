@@ -40,6 +40,8 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
 
     if ladder == "hc":
         elo_rating = elo_rating - 300
+
+    elo_rating = max(100, elo_rating)
     
     rating = get_or_create_player_rating(
         db,
