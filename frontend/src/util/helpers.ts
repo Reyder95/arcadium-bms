@@ -1,4 +1,4 @@
-import type { Tier } from "./NetworkModels";
+import type { Tier, Job } from "./NetworkModels";
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     const res = await fetch(`/api${path}`, {
@@ -14,6 +14,9 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export function determineTier(tiers: Tier[], rating: number) {
+    if (rating == -1)
+      return null;
+
     return tiers.findLastIndex((tier) => rating >= tier.floor) ?? tiers[0];
 }
 
@@ -21,6 +24,7 @@ const DIVISIONS = 5;
 
 export function calculateDivision(tiers: Tier[], rating: number, index: number): number | null {
   if (index === tiers.length - 1) return null;
+  if (index === -1) return null;
 
   const floor = tiers[index].floor;
   const divisionWidth = (tiers[index + 1].floor - floor) / DIVISIONS;
@@ -45,6 +49,7 @@ export function winRate(wins: number, losses: number): number | null {
 
 export function divisionProgress(tiers: Tier[], rating: number, index: number) {
   if (index === tiers.length - 1) return null;   // Grandmaster: no divisions
+  if (rating === -1) return null;   // Unranked
 
   const tierFloor = tiers[index].floor;
   const width = (tiers[index + 1].floor - tierFloor) / DIVISIONS;
@@ -57,4 +62,19 @@ export function divisionProgress(tiers: Tier[], rating: number, index: number) {
   const percent = Math.max(0, Math.min(100, ((rating - start) / (end - start)) * 100));
 
   return { start, end, percent };
+}
+
+export async function waitForJob<T>(jobId: number, intervalMs = 1500, timeoutMs = 60_000): Promise<Job<T>> {
+  const started = Date.now();
+
+  while (Date.now() - started < timeoutMs) {
+    const job = await api<Job<T>>(`/jobs/${jobId}`);
+
+    if (job.status === "done") return job;
+    if (job.status === "failed") throw new Error(job.error ?? "Job failed");
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  throw new Error("Timed out waiting for Bokutachi...")
 }

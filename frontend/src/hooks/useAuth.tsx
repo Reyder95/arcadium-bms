@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "../util/helpers";
-
-type User = { id: number; username: string; display_name: string; avatar_url: string | null};
+import type { User } from "../util/NetworkModels";
 
 type AuthState = {
     user: User | null;

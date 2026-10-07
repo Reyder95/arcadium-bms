@@ -21,6 +21,7 @@ class MatchOut(BaseModel):
     type: MatchType
     search_elo: float
     cancel_reason: str | None
+    player_placed_before: bool
     player_display_before: float | None
     player_display_after: float | None
     chart_rating_before: float | None

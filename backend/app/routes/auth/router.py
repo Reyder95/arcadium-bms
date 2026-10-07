@@ -9,6 +9,7 @@ from app.util.helpers import get_standing
 from app.util.dependencies import COOKIE_NAME, start_session, get_current_user, CurrentUser
 from app.util.enums import MatchResult, MatchType
 from app.job.enqueue import enqueue_tachi_seed
+from app.schemas.job import JobOut
 from app.util.security import hash_password, hash_token, verify_password
 
 from app.schemas.auth import UserOut, RegisterIn, LoginIn, UserRatingOut
@@ -80,7 +81,7 @@ def me(user: User = Depends(get_current_user)):
 
 # Allows a user to link their tachi account. Once this is done, a job is queued to seed them behind the scenes.
 
-@router.put("/me/tachi_key", status_code=204)
+@router.put("/me/tachi_key", response_model=JobOut, status_code=200)
 def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if (tachi_key == None or tachi_key == ""):
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Tachi key must not be empty!")
@@ -88,6 +89,8 @@ def tachi_key(tachi_key: str, user: User = Depends(get_current_user), db: Sessio
     user.tachi_api_key = tachi_key.strip()
     user.rating_seeds = {}
 
-    enqueue_tachi_seed(db, user.id)    
+    job = enqueue_tachi_seed(db, user.id)    
 
     db.commit()
+
+    return job

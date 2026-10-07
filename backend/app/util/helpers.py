@@ -102,6 +102,7 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
         chart_rating_before=chart_rating.rating,
         start_time=now,
         cutoff_time=now + MATCH_DURATION,
+        player_placed_before=True if rating.games_played > 5 else False
         )
 
     db.add(match)

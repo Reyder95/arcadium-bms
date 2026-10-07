@@ -76,6 +76,9 @@ def resolve_match(db, match_id: int, score: dict | None) -> dict:
     chart.volatility = chart_new.volatility
     chart.games_played += 1
 
+    if player.games_played >= 4:
+        player.placed = True
+
     match.status = MatchStatus.RESOLVED
     match.result = MatchResult.WIN if won else MatchResult.LOSS
     match.end_time = datetime.now(timezone.utc)
@@ -256,22 +259,7 @@ def match_pre_submission(db, job):
         best_lamp = max(clears, key=lambda s: LAMP_RANK[s["scoreData"]["lamp"]]) if clears else None
         return resolve_match(db, match.id, best_lamp)
 
-    newest = sorted(recent_scores, key=lambda s: s["timeAdded"], reverse=True)[:3]
-
-    return {
-        "payload": job.payload,
-        "loaded_match_id": match.id,
-        "match_start": match.start_time.isoformat(),
-        "match_cutoff": match.cutoff_time.isoformat(),
-        "newest_scores": [
-            {
-                "chartID": s["chartID"],
-                "added": tachi_time(s["timeAdded"]).isoformat() if s["timeAdded"] else None,
-                "achieved": tachi_time(s["timeAchieved"]).isoformat() if s["timeAchieved"] else None,
-            }
-            for s in newest
-        ],
-    }
+    return {"match_id": match.id, "result": match.result}
 
 HANDLERS = {
     "tachi_recent_score": tachi_recent_score,

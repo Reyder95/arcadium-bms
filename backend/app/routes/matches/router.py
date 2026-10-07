@@ -10,6 +10,7 @@ from app.models import Match, UserAvoidedChart
 from app.util.dependencies import CurrentUser
 from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid
 from app.job.enqueue import enqueue_match_pre_submission
+from app.job.handlers import resolve_match
 
 from app.schemas.match import MatchOut
 
@@ -41,11 +42,11 @@ def submit_active_match(db: DbSession, user: CurrentUser):
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
 
-    enqueue_match_pre_submission(db, user.id, active_match.id)
+    job = enqueue_match_pre_submission(db, user.id, active_match.id)
 
     db.commit()
 
-    return {"message": "Submitted"}
+    return {"message": "Submitted", "job_id": job.id}
 
 @router.post("/skip", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
 def skip_active_match(db: DbSession, user: CurrentUser):
@@ -75,9 +76,7 @@ def forfeit_active_match(db: DbSession, user: CurrentUser):
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
 
-    active_match.status = MatchStatus.RESOLVED
-    active_match.result = MatchResult.LOSS
-    active_match.end_time = datetime.now()
+    resolve_match(db, active_match.id, None)
 
     db.commit()
 
