@@ -43,11 +43,15 @@ class UserRatingOut(BaseModel):
     display_rating: float
     placed: bool
     games_played: int
+    rank: int
+    total: int
+    wins: int
+    losses: int
 
 class UserOut(BaseModel):
     id: int
+    display_name: str
     username: str
     avatar_url: str | None
-    ratings: list[UserRatingOut]
 
     model_config = {"from_attributes": True}

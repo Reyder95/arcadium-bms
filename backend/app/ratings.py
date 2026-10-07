@@ -18,14 +18,14 @@ SEED_RD = {
 
 TIERS = [
     ( "Copper", 100 ),
-    ( "Bronze", 400 ),
-    ( "Silver", 600 ),
-    ( "Gold", 800 ),
-    ( "Platinum", 1100 ),
-    ( "Emerald", 1400 ),
-    ( "Diamond", 1650 ),
-    ( "Master", 1850 ),
-    ( "Grandmaster", 2050 )
+    ( "Bronze", 500 ),
+    ( "Silver", 900 ),
+    ( "Gold", 1300 ),
+    ( "Platinum", 1900 ),
+    ( "Emerald", 2500 ),
+    ( "Diamond", 3000 ),
+    ( "Master", 3400 ),
+    ( "Grandmaster", 3800 )
 ]
 
 DIVISIONS = 5
