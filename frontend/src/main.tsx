@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from "react-router"
 
 import "@fontsource/sanchez"
 import "@fontsource/archivo-black"
+import "@fontsource-variable/jetbrains-mono"
 
 import "./index.css"
 import HomePage from './HomePage.tsx'

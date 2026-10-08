@@ -25,9 +25,8 @@ interface QueueIconProps {
 }
 
 export function QueueIcon(props: QueueIconProps) {
-    console.log("lol", props.displayProgress)
     return (
-    <div className="flex-1 flex items-center h-ful flex-col gap-4">
+    <div className="flex items-center h-ful flex-col gap-4">
         <div className="h-32 flex items-end justify-center">
             {
                 props.tierIndex !== null ?
@@ -36,30 +35,36 @@ export function QueueIcon(props: QueueIconProps) {
             }
 
         </div>
-        <div className="font-sanchez items-center font-bold text-xl tracking-wide">
+        <div className="font-archivo items-center font-light text-xl tracking-widest">
             {
             props.tierIndex !== null 
             ? `${props.tiers[props.tierIndex].name} ${props.division ? toRoman(props.division) : ""}`
             : "Unranked"
             }
         </div>
-        <div className="w-40">
+        {
+            props.displayRating ? (
+            <div className="font-mono text-xl font-extrabold flex items-center gap-3">
+                1576 <span className="text-subtext font-light text-[15px]">≈ ☆12.11</span>
+            </div>
+            ): (<></>)
+        }
+        
             {
                 props.displayProgress ?
-                <>
+                <div className="w-3/4">
                     <ProgressBar
                     value={props.progress?.percent ?? 0}
-                    className="bg-highlight" 
+                    className="bg-highlight w-full" 
                     />
-                    <div className="flex flex-row justify-between text-subtext mt-2">
-                        <p>{props.progress?.start}</p>
-                        <p>{props.progress?.end}</p>
+                    <div className="font-sanchez flex flex-row justify-between text-subtext mt-2 text-sm">
+                        <p>1540</p>
+                        <p>Gold II &middot; 1660</p>
                     </div> 
-                    </>
+                    </div>
                     : (<></>)
 
             }
-        </div>
     </div>
     )
 
