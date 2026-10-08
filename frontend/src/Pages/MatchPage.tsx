@@ -128,7 +128,10 @@ export default function MatchPage() {
 
             <div>
                 <p className="uppercase font-archivo text-center font-light text-2xl tracking-widest mb-8">
-                    BMS EASY CLEAR MATCH 
+                    
+                    {
+                        match.ladder == "ec" ? "BMS EAASY CLEAR MATCH" : "BMS HARD CLEAR MATCH"
+                    }
                     
                     {
                         match.status === "active" ?

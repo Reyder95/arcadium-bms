@@ -7,7 +7,7 @@ import arcadiumTextLogo from './assets/Arcadium Logo Text.png';
 import arcadiumIconLogo from './assets/Arcadium Logo Icon.png';
 import { useAuth } from "./hooks/useAuth";
 import { useEffect, useState } from "react";
-import { type Match } from "./util/NetworkModels";
+import { type CanQueue, type Match } from "./util/NetworkModels";
 import { api } from "./util/helpers";
 
 export default function Layout() {
@@ -16,11 +16,17 @@ export default function Layout() {
     const onMatchPage = useMatch("/match/:id");
 
     const [activeMatch, setActiveMatch] = useState<Match | null>();
+    const [canQueue, setCanQueue] = useState<CanQueue>({can_queue: false});
 
     useEffect(() => {
-        api<Match | null>("/users/me/active-match")
-        .then(match => {
+
+        Promise.all([
+        api<Match | null>("/users/me/active-match"),
+        api<CanQueue>("/users/me/can-queue")
+        ])
+        .then(([match, can_queue]) => {
             setActiveMatch(match)
+            setCanQueue(can_queue)
         })
     }, [user])
 
@@ -43,7 +49,9 @@ export default function Layout() {
                     )
                     ) : (
                         <Menu>
-                            <MenuButton className="focus:outline-none flex items-center gap-2 hover:text-highlight transition-colors duration-150">
+                            {canQueue.can_queue ? 
+                            <>
+                             <MenuButton className="focus:outline-none flex items-center gap-2 hover:text-highlight transition-colors duration-150">
                             Queue <ChevronDown className="size-6 scale-x-90" />
                             </MenuButton>
                             <MenuItems
@@ -58,7 +66,10 @@ export default function Layout() {
                                 <MenuItem>
                                     <Link to="/prep/bms/7k/hc" className="block data-focus:text-highlight durationg-150">7K Hard Clear</Link>
                                 </MenuItem>
-                            </MenuItems>
+                            </MenuItems></> : (<></>)      
+   
+                        }
+
                         </Menu>
                     )
                     }
