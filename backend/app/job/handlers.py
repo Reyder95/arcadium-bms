@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.models import User, Match
 from app.tachi import tachi_get
-from app.ratings import sieg_to_elo, GlickoRating, update
+from app.ratings import sieg_to_elo, GlickoRating, update, expected
 from app.db import Session
 from app.models import PlayerRating
 
@@ -48,6 +48,29 @@ LADDER_REQUIREMENT = {
     "hc": ClearTypes.HARD_CLEAR
 }
 
+SURPRISE_THRESHOLD = 3.0
+RD_PER_SURPRISE = 15
+RD_STREAK_CAP = 150
+RD_STREAK_BASE = 60
+
+def match_expected(m: Match) -> float:
+    """Chance the player was expected to clear, from the ratings before the match."""
+    if m.player_display_before is None or m.chart_rating_before is None:
+        return 0.5
+    return 1 / (1 + 10 ** ((m.chart_rating_before - m.player_display_before) / 400))
+
+def effective_rd(db, player, user_id, ladder, game, playtype) -> float:
+    from app.util.helpers import last_n_resolved_matches
+
+    recent = last_n_resolved_matches(db, user_id, ladder, game, playtype, 10)
+    surprise = sum((1.0 if m.result == MatchResult.WIN else 0.0) - match_expected(m) for m in recent)
+
+    if abs(surprise) >= SURPRISE_THRESHOLD:
+        target = min(RD_STREAK_CAP, RD_STREAK_BASE + RD_PER_SURPRISE * abs(surprise))
+        return max(player.rd, target)
+    else:
+        return player.rd
+
 def resolve_match(db, match_id: int, score: dict | None) -> dict:
     match = db.scalar(select(Match).where(Match.id == match_id).with_for_update())
     if match is None or match.status != MatchStatus.ACTIVE:
@@ -59,7 +82,9 @@ def resolve_match(db, match_id: int, score: dict | None) -> dict:
 
     s = float(won)
 
-    player_old = GlickoRating(player.display_rating, player.rd, player.volatility)
+    rd = effective_rd(db, player, match.user_id, match.ladder, match.game, match.playtype)
+
+    player_old = GlickoRating(player.display_rating, rd, player.volatility)
     chart_old = GlickoRating(chart.rating, chart.rd, chart.volatility)
 
     player_new = update(player_old, chart_old, s)

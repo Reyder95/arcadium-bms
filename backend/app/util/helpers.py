@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, timezone
 
 from app.db import DbSession
 from app.util.dependencies import CurrentUser
-from app.job.handlers import get_or_create_player_rating, get_player_rating
+from app.job.handlers import get_or_create_player_rating, get_player_rating, effective_rd
 from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check
 from app.models import Chart, ChartRating, Match, PlayerRating, User
 from app.util.enums import MatchStatus, MatchType, MatchResult
 from app.ratings import update, GlickoRating
 
-MATCH_DURATION = timedelta(minutes=0.2)
+MATCH_DURATION = timedelta(minutes=12)
 
 def seed_rd(num_scores: int | None) -> float:
     if not num_scores:
@@ -189,7 +189,7 @@ def get_standing(db, r, user_id):
 
     return rank, total, wins, losses
 
-def calculate_pt_gain_and_loss(user: User, match: Match):
+def calculate_pt_gain_and_loss(db: DbSession, user: User, match: Match):
     rating = next(
         (r for r in user.ratings
         if r.ladder == match.ladder and r.game == match.game and r.playtype == match.playtype),
@@ -202,7 +202,24 @@ def calculate_pt_gain_and_loss(user: User, match: Match):
         None,
     )
 
-    pt_gain = update(GlickoRating(rating.display_rating, rating.rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 1).rating - rating.display_rating
-    pt_loss = update(GlickoRating(rating.display_rating, rating.rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 0).rating - rating.display_rating
+    rd = effective_rd(db, rating, user.id, match.ladder, match.game, match.playtype)
+
+    pt_gain = update(GlickoRating(rating.display_rating, rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 1).rating - rating.display_rating
+    pt_loss = update(GlickoRating(rating.display_rating, rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 0).rating - rating.display_rating
 
     return pt_gain, pt_loss
+
+def last_n_resolved_matches(db: DbSession, user_id: int, ladder: str, game: str, playtype: str, n: int):
+    return db.scalars(
+        select(Match)
+        .where(
+            Match.user_id == user_id,
+            Match.ladder == ladder,
+            Match.type == MatchType.COMPETITIVE,
+            Match.status == MatchStatus.RESOLVED,
+            Match.game == game,
+            Match.playtype == playtype
+        )
+        .order_by(Match.end_time.desc().nulls_last(), Match.id.desc())
+        .limit(n)
+    )

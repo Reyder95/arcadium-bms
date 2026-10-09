@@ -113,6 +113,10 @@ export default function MatchPage() {
                 if (completed_job.result.result != null)
                 {
                     setMatchResult(completed_job.result.result)
+                    
+                    const finalizedMatch = await api<Match>(`/match/${id}`);
+
+                    setMatch(finalizedMatch)
                     setShowWin(true)
                 }
             }
@@ -123,11 +127,24 @@ export default function MatchPage() {
     }
 
     const handleForfeit = async () => {
-        api<Match>(`/match/forfeit`, {method: "POST"})
-        .then(() => {
-            navigate(`/prep/${match.game}/${match.playtype}/${match.ladder}`)
-        })
-        .catch(err => console.log(err.message));
+        try {
+            await api<Match>(`/match/forfeit`, {method: "POST"})
+            
+            if (!match) return
+
+            const finalizedMatch = await waitForMatch(match.id)
+
+            if (!finalizedMatch.result)
+                return;
+
+            setShowWin(true)
+            setMatchResult(finalizedMatch.result)
+            setMatch(finalizedMatch);
+
+        } catch (err) {
+            setStatus("error");
+            setMessage(err instanceof Error ? err.message : "Something went wrong")
+        }
     }
 
     const handleSkip = async () => {

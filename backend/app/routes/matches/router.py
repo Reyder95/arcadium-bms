@@ -26,7 +26,7 @@ def get_match_by_id(db: DbSession, match_id: int):
     
     user = db.get(User, match.user_id)
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, match)
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, match)
 
     base = MatchOut.model_validate(match)
 
@@ -41,7 +41,7 @@ def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: Cur
     new_match = create_match_helper(game, playtype, ladder, type, elo, db, user)
     db.commit()
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, new_match)
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, new_match)
 
     base = MatchOut.model_validate(new_match)
 
@@ -82,7 +82,7 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     new_match = create_match_helper(active_match.game, active_match.playtype, active_match.ladder, active_match.type, active_match.search_elo, db, user, [a.chart_id for a in user.avoided_charts])
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, new_match)
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, new_match)
 
     db.commit()
 
@@ -97,7 +97,7 @@ def forfeit_active_match(db: DbSession, user: CurrentUser):
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, active_match)
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, active_match)
 
     resolve_match(db, active_match.id, None)
 
