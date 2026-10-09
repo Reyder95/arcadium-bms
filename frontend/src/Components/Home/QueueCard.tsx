@@ -3,10 +3,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { Button } from "@headlessui/react";
 import { CircleArrowOutUpRight, Podium } from "lucide-react";
 import ProgressBar from "../General/ProgressBar";
-import { type Match, type Tier, type UserRating } from "../../util/NetworkModels";
-import { api, calculateDivision, determineTier, divisionProgress, toRoman, winRate } from "../../util/helpers";
+import { type SieglindeCalculations, type Match, type Tier, type TierData, type UserRating } from "../../util/NetworkModels";
+import { api, calculateDivision, determineTier, divisionProgress, eloToSieg, toFixedTruncated, toRoman, winRate } from "../../util/helpers";
 import { returnIcon } from "../../util/rankedIconPicker";
 import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
 
 interface QueueCardProps {
     rating: UserRating;
@@ -18,13 +19,24 @@ interface QueueCardProps {
 interface QueueIconProps {
     tierIndex: number | null;
     division: number | null;
-    progress: any | null;
+    progress?: any | null;
     tiers: Tier[];
+    rating: number;
     displayProgress?: boolean;
     displayRating?: boolean
 }
 
 export function QueueIcon(props: QueueIconProps) {
+
+    const [sieglindeCalculations, setSieglindeCalculations] = useState<SieglindeCalculations>()
+
+    useEffect(() => {
+        api<TierData>("/info/tiers")
+        .then((tiers) => {
+            setSieglindeCalculations(tiers.sieg_calc)
+        })
+    }, [])
+
     return (
     <div className="flex items-center h-ful flex-col gap-4">
         <div className="h-32 flex items-end justify-center">
@@ -45,7 +57,7 @@ export function QueueIcon(props: QueueIconProps) {
         {
             props.displayRating ? (
             <div className="font-mono text-xl font-extrabold flex items-center gap-3">
-                1576 <span className="text-subtext font-light text-[15px]">≈ ☆12.11</span>
+                {toFixedTruncated(props.rating, 0)} <span className="text-subtext font-light text-[15px]">≈ {sieglindeCalculations ? eloToSieg(props.rating, sieglindeCalculations) >= 13 ? "★" : "☆" : "☆"} {sieglindeCalculations ? eloToSieg(props.rating, sieglindeCalculations).toFixed(2) : "0.00"}</span>
             </div>
             ): (<></>)
         }
@@ -58,7 +70,7 @@ export function QueueIcon(props: QueueIconProps) {
                     className="bg-highlight w-full" 
                     />
                     <div className="font-sanchez flex flex-row justify-between text-subtext mt-2 text-sm">
-                        <p>1540</p>
+                        <p>{divisionProgress(props.tiers, props.rating, props.tierIndex ?? 0)?.start}</p>
                         <p>Gold II &middot; 1660</p>
                     </div> 
                     </div>
@@ -75,6 +87,8 @@ export default function QueueCard(props: QueueCardProps) {
     const navigate = useNavigate();
 
     console.log(props.rating.placed)
+
+    console.log(props.tiers)
 
     const tierIndex: number | null = determineTier(props.tiers, props.rating.display_rating)
     const division: number | null = calculateDivision(props.tiers, props.rating.display_rating, tierIndex ?? -1);
@@ -109,6 +123,7 @@ export default function QueueCard(props: QueueCardProps) {
                     tierIndex={tierIndex}
                     division={division}
                     progress={progress}
+                    rating={props.rating.display_rating}
                     tiers={props.tiers}
                     displayProgress={props.displayProgress}
                     displayRating={props.displayRating}

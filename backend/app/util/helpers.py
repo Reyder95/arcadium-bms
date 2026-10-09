@@ -6,10 +6,11 @@ from app.db import DbSession
 from app.util.dependencies import CurrentUser
 from app.job.handlers import get_or_create_player_rating, get_player_rating
 from app.job.enqueue import enqueue_tachi_seed, enqueue_match_final_check
-from app.models import Chart, ChartRating, Match, PlayerRating
+from app.models import Chart, ChartRating, Match, PlayerRating, User
 from app.util.enums import MatchStatus, MatchType, MatchResult
+from app.ratings import update, GlickoRating
 
-MATCH_DURATION = timedelta(minutes=12)
+MATCH_DURATION = timedelta(minutes=0.2)
 
 def seed_rd(num_scores: int | None) -> float:
     if not num_scores:
@@ -59,7 +60,7 @@ def create_match_helper(game: str, playtype: str, ladder: str, type: MatchType, 
         search_rating = elo
 
     max_window = 300
-    curr_window = 100
+    curr_window = 50
     window_increment = 50
     random_chart = None
 
@@ -187,3 +188,21 @@ def get_standing(db, r, user_id):
     )
 
     return rank, total, wins, losses
+
+def calculate_pt_gain_and_loss(user: User, match: Match):
+    rating = next(
+        (r for r in user.ratings
+        if r.ladder == match.ladder and r.game == match.game and r.playtype == match.playtype),
+        None,
+    )
+
+    chart_rating : ChartRating = next(
+        (r for r in match.chart.ratings
+        if r.ladder == match.ladder),
+        None,
+    )
+
+    pt_gain = update(GlickoRating(rating.display_rating, rating.rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 1).rating - rating.display_rating
+    pt_loss = update(GlickoRating(rating.display_rating, rating.rd, rating.volatility), GlickoRating(chart_rating.rating, chart_rating.rd, chart_rating.volatility), 0).rating - rating.display_rating
+
+    return pt_gain, pt_loss

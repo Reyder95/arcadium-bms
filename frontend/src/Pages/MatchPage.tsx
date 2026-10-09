@@ -1,15 +1,17 @@
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../hooks/useAuth"
 import { useEffect, useState } from "react";
-import { api, calculateDivision, determineTier, divisionProgress, waitForJob } from "../util/helpers";
-import { type Job, type ChartRating, type JobResultMatchSubmit, type Match, type MatchSubmit, type Tier, type UserRating } from "../util/NetworkModels";
+import { api, buildSteps, calculateDivision, calculateTimeLeftPercentage, determineTier, divisionProgress, formatClock, waitForJob, waitForMatch } from "../util/helpers";
+import { type Job, type ChartRating, type JobResultMatchSubmit, type Match, type MatchSubmit, type Tier, type UserRating, type TierData, type SieglindeCalculations } from "../util/NetworkModels";
 import { QueueIcon } from "../Components/Home/QueueCard";
 import { formatTime, useCountdown } from "../hooks/useCountdown";
-import { Button } from "@headlessui/react";
-import { LogOut, Send } from "lucide-react";
-import { MatchWinDialog } from "../Components/Match/MatchWinDialog";
+import { Button, MenuButton, Menu, MenuItems, MenuItem } from "@headlessui/react";
+import { ChevronDown, LoaderCircle, LogOut, Send } from "lucide-react";
+import { MatchResultsDialog } from "../Components/Match/MatchResultsDialog";
 import ForegroundCard from "../Components/General/ForegroundCard";
 import ProgressBar from "../Components/General/ProgressBar";
+import { games, ladder, playtype } from "../util/dictionaryCorrections";
+import { toFixedTruncated } from "../util/helpers";
 
 export default function MatchPage() {
 
@@ -33,15 +35,34 @@ export default function MatchPage() {
     useEffect(() => {
         Promise.all([
             api<Match>(`/match/${id}`),
-            api<Tier[]>("/info/tiers")
+            api<TierData>("/info/tiers")
         ])
         .then(([match, tiers]) => {
             setMatch(match)
-            setTiers(tiers)
+            setTiers(tiers.tiers)
 
             console.log(match)
         })
     }, [user?.id, id])
+
+    useEffect(() => {
+        if (!finished || !match) return
+
+        async function runMatchCheck() {
+            if (!match) return
+
+            const finalizedMatch = await waitForMatch(match.id)
+
+            if (!finalizedMatch.result)
+                return;
+
+            setShowWin(true)
+            setMatchResult(finalizedMatch.result)
+            setMatch(finalizedMatch);
+        }
+
+        runMatchCheck()
+    }, [finished, match?.status, match?.id])
 
     const playerRating : UserRating = { 
         ladder:  match?.ladder ?? "ec",
@@ -117,32 +138,48 @@ export default function MatchPage() {
         .catch(err => console.log(err))
     }
 
+    console.log(match.player_display_after)
+
     return (
         <div className="w-full flex-1 flex flex-col">
-            <MatchWinDialog
-            open={showWin}
-            win={matchResult === "win" ? true : false}
-            onClose={() => {
-                setShowWin(false);
-                navigate("/")
-            }}
-            ratingChange={0}/>
+            {
+                match.player_display_after ?             
+                <MatchResultsDialog
+                open={showWin}
+                win={matchResult === "win" ? true : false}
+                onClose={() => {
+                    setShowWin(false);
+                    navigate("/")
+                }}
+                rating_after={match.player_display_after}
+                rating_before={match.player_display_before}
+                tierIndex={tierIndex}
+                division={division}
+                tiers={tiers}
+                /> : <></>
+            }
+
 
             <div className="flex-1 flex flex-col">
                 <div className="w-full mx-auto flex-1 flex flex-col items-center justify-center">
                     <div className="w-1/2 flex flex-row justify-between mb-8">
                         <div>
-                            <p className="font-archivo tracking-[0.2em] text-subtext text-sm mb-3">BMS 7K &middot; EASY CLEAR &middot; <span className="text-highlight">RANKED</span></p>
+                            <p className="font-archivo tracking-[0.2em] text-subtext text-sm mb-3">{games[match.game]} {playtype[match.playtype]} &middot; {ladder[match.ladder].toUpperCase()} &middot; <span className="text-highlight">{match.type.toUpperCase()}</span></p>
                             <h1 className="font-archivo text-5xl tracking-widest font-thin">Match #{id}</h1>
                         </div>
                         <div>
-                            <h1 className="font-mono text-5xl tracking-widest font-bold mb-3">10:40</h1>
-                            <p className="font-sanchez text-subtext text-right">Cutoff 4:00 PM</p>
+                            <h1 className="font-mono text-5xl tracking-widest font-bold mb-3 text-right">{msLeft === 0 ? "Ended" : formatTime(msLeft)}</h1>
+                            {
+                                <p className="font-sanchez text-subtext text-right tracking-[0.2em]">{msLeft === 0 ? "Ended" : "Cutoff Time - " + formatClock(match.cutoff_time)}</p>
+                            }
+
                         </div>
                     </div>
                     <div className="w-1/2 mb-8">
                         <ProgressBar
-                        value={75}
+                        value={calculateTimeLeftPercentage(match.start_time, match.cutoff_time, msLeft)}
+                        animate={true}
+                        durationMs={700}
                         />
                     </div>
                     <div className="w-1/2 grid grid-cols-3 gap-10 mx-auto">
@@ -152,21 +189,22 @@ export default function MatchPage() {
                                 tierIndex={tierIndex}
                                 division={division}
                                 progress={progress}
+                                rating={match.player_display_before}
                                 tiers={tiers}
                                 displayProgress={true}
                                 displayRating={true}
                             />
                         </ForegroundCard>
                         <ForegroundCard className="text-center">
-                            <p className="font-archivo font-thin tracking-[0.2em] text-subtext">POTENTIAL CHANGE</p>   
+                            <p className="font-archivo font-thin tracking-[0.2em] text-subtext">POTENTIAL</p>   
                             <div className="flex-1 flex flex-col items-center justify-center gap-2">
                                 <div className="grid grid-cols-2 divide-x divide-zinc-700/60">
                                 <div className="px-8 text-center">
-                                    <p className="font-mono text-5xl font-bold text-green-400">+18</p>
+                                    <p className="font-mono text-5xl font-bold text-green-400">+{toFixedTruncated(match.potential_gain, 0)}</p>
                                     <p className="mt-3 text-subtext font-sanchez">Easy clear or better</p>
                                 </div>
                                 <div className="px-8 text-center">
-                                    <p className="font-mono text-5xl font-bold text-red-400">−14</p>
+                                    <p className="font-mono text-5xl font-bold text-red-400">{toFixedTruncated(match.potential_loss, 0)}</p>
                                     <p className="mt-3 text-subtext font-sanchez">No clear by cutoff</p>
                                 </div>
                                 </div>
@@ -176,9 +214,10 @@ export default function MatchPage() {
                         <ForegroundCard className="text-center w-full">
                             <p className="font-archivo font-thin tracking-[0.2em] text-subtext">OPPONENT</p>
                             <QueueIcon
-                                tierIndex={tierIndex}
-                                division={division}
+                                tierIndex={chartTierIndex}
+                                division={chartDivision}
                                 progress={progress}
+                                rating={match.chart_rating_before}
                                 tiers={tiers}
                                 displayProgress={false}
                                 displayRating={true}
@@ -196,8 +235,11 @@ export default function MatchPage() {
                             </p>
 
                             <div className="flex flex-row w-full justify-center gap-3 mt-3">
-                                <p className="font-semibold bg-background px-2 py-1 rounded-xl border border-zinc-600">sl3</p>
-                                <p className="font-semibold bg-background px-2 py-1 rounded-xl border border-zinc-600">★3</p>
+                                {
+                                    match.chart.table_levels.map((level) => (
+                                        <p className="font-semibold bg-background px-2 py-1 rounded-xl border border-zinc-600">{level.table_icon}{level.table_level}</p>
+                                    ))
+                                }
                             </div>
                         </ForegroundCard>
                     </div>
@@ -217,8 +259,18 @@ export default function MatchPage() {
                                 </div>
 
                                 <div className="flex flex-row gap-4">
-                                    <Button className="font-sanchez bg-foreground border border-zinc-600/80 rounded-lg p-3 font-bold">Skip &middot; <span className="text-subtext text-sm">30s left</span></Button>
-                                    <Button className="font-sanchez bg-highlight rounded-lg p-3 font-bold">Check Scores</Button>
+                                    {
+                                        skipMsLeft > 0 ? <Button onClick={handleSkip} className="font-sanchez bg-foreground border border-zinc-600/80 rounded-lg p-3 font-bold hover:brightness-130 cursor-pointer duration-150">Skip &middot; <span className="text-subtext text-sm">{Math.ceil(skipMsLeft / 1000) + "s left"}</span></Button> :
+                                        <Button className="font-sanchez bg-zinc-900 border border-zinc-600/80 rounded-lg p-3 font-bold cursor-not-allowed duration-150 text-zinc-700">Unavailable</Button> 
+                                    }
+                                    
+                                    <Button onClick={handleSubmit} className="relative font-sanchez bg-highlight rounded-lg p-3 font-bold hover:brightness-130 cursor-pointer duration-150">
+                                        <span className={status === "verifying" ? "invisible" : ""}>Check Scores</span>
+                                        {status === "verifying" && (
+                                            <LoaderCircle className="absolute inset-0 m-auto size-4 animate-spin"/>
+                                        )}
+                                    </Button> 
+
                                 </div>
                             </div>
                         </ForegroundCard>
@@ -235,8 +287,24 @@ export default function MatchPage() {
                                 https://arcadium.com/api/match/{match.user.id}/table
                             </p>
                             <div className="flex flex-row gap-4">
-                                <Button className="text-highlight underline tracking-wide">Download Chart</Button>
-                                <Button className="text-red-400 underline tracking-wide">Forfeit</Button>
+                                <Menu>
+                                    <MenuButton className="text-highlight cursor-pointer underline tracking-wide flex flex-row items-center gap-1">
+                                        Download Chart <ChevronDown className='size-4' />
+                                    </MenuButton>
+                                    <MenuItems
+                                    anchor={{ to: "bottom start", gap: 30}}
+                                    transition
+                                    className="focus:outline-none flex flex-col gap-6 bg-foreground p-5 rounded-md font-bold transition duration-150 ease-out data-closed:opacity-0 w-50"
+                                    >
+                                        <MenuItem>
+                                            <a href={`https://gingerrush.com/download/direct/${match.chart.md5}`} className="block data-focus:text-highlight duration-150">Gingerrush</a>
+                                        </MenuItem>
+                                        <MenuItem>
+                                            <a href={`backbeat://charts/md5/${match.chart.md5}`} className="block data-focus:text-highlight duration-150">Backbeat <span className="text-sm text-subtext font-medium">(requires backbeat)</span></a>
+                                        </MenuItem>
+                                    </MenuItems>
+                                </Menu>
+                                <Button onClick={handleForfeit} className="text-red-400 hover:brightness-110 duration-150 cursor-pointer underline tracking-wide">Forfeit</Button>
                             </div>
                         </ForegroundCard>
                     </div>

@@ -6,34 +6,46 @@ from typing import Annotated
 
 from app.db import DbSession
 from app.util.enums import CancelReason, MatchStatus, MatchResult, MatchType
-from app.models import Match, UserAvoidedChart, User
+from app.models import Match, UserAvoidedChart, User, ChartRating
 from app.util.dependencies import CurrentUser
-from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid
+from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid, calculate_pt_gain_and_loss
 from app.job.enqueue import enqueue_match_pre_submission
 from app.job.handlers import resolve_match
+from app.ratings import GlickoRating, update
 
-from app.schemas.match import MatchOut
+from app.schemas.match import MatchOut, MatchWithStakesOut
 
 router = APIRouter(prefix="/match", tags=["match"])
 
-@router.get("/{match_id}", response_model=MatchOut, status_code=status.HTTP_200_OK)
+@router.get("/{match_id}", response_model=MatchWithStakesOut, status_code=status.HTTP_200_OK)
 def get_match_by_id(db: DbSession, match_id: int):
     match = db.get(Match, match_id)
 
     if match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Match not found")
+    
+    user = db.get(User, match.user_id)
 
-    return match
-@router.post("/create", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, match)
+
+    base = MatchOut.model_validate(match)
+
+    return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
+
+@router.post("/create", response_model=MatchWithStakesOut, status_code=status.HTTP_201_CREATED)
 def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser, elo: Annotated[float | None, Query(ge=100, le=2050)] = None, type: MatchType = MatchType.COMPETITIVE):
     active_match = get_active_match(db, user)
 
     if active_match is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "You already have an active match!")
-
     new_match = create_match_helper(game, playtype, ladder, type, elo, db, user)
     db.commit()
-    return new_match
+
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, new_match)
+
+    base = MatchOut.model_validate(new_match)
+
+    return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
 
 @router.post("/submit")
 def submit_active_match(db: DbSession, user: CurrentUser):
@@ -48,7 +60,7 @@ def submit_active_match(db: DbSession, user: CurrentUser):
 
     return {"message": "Submitted", "job_id": job.id}
 
-@router.post("/skip", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
+@router.post("/skip", response_model=MatchWithStakesOut, status_code=status.HTTP_201_CREATED)
 def skip_active_match(db: DbSession, user: CurrentUser):
     active_match = get_active_match(db, user)
 
@@ -70,22 +82,30 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     new_match = create_match_helper(active_match.game, active_match.playtype, active_match.ladder, active_match.type, active_match.search_elo, db, user, [a.chart_id for a in user.avoided_charts])
 
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, new_match)
+
     db.commit()
 
-    return new_match
+    base = MatchOut.model_validate(new_match)
 
-@router.post("/forfeit", response_model=MatchOut, status_code=status.HTTP_200_OK)
+    return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
+
+@router.post("/forfeit", response_model=MatchWithStakesOut, status_code=status.HTTP_200_OK)
 def forfeit_active_match(db: DbSession, user: CurrentUser):
     active_match = get_active_match(db, user)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
 
+    pt_gain, pt_loss = calculate_pt_gain_and_loss(user, active_match)
+
     resolve_match(db, active_match.id, None)
 
     db.commit()
 
-    return active_match
+    base = MatchOut.model_validate(active_match)
+
+    return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
 
 @router.get("/{user_id}/table", response_class=HTMLResponse)
 def serve_user_table_index(db: DbSession, user_id: int):

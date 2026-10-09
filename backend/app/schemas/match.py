@@ -35,6 +35,10 @@ class MatchOut(BaseModel):
         self.chart.ratings = [r for r in self.chart.ratings if r.ladder == self.ladder]
         return self
 
+class MatchWithStakesOut(MatchOut):
+    potential_gain: float
+    potential_loss: float
+
 class MatchDataOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

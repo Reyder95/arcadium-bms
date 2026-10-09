@@ -19,6 +19,7 @@ class ChartOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     chart_id: str
+    md5: str
     title: str | None
     artist: str | None
     subtitle: str | None

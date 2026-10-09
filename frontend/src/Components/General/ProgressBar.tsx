@@ -1,9 +1,14 @@
+import { cn } from "../../util/helpers";
+
 type ProgressBarProps = {
   value: number;   // 0–100
   className?: string;
+  onTransitionEnd: () => void;
+  animate: boolean;
+  durationMs: number
 };
 
-export default function ProgressBar({ value, className = "bg-purple-500" }: ProgressBarProps) {
+export default function ProgressBar({ value, onTransitionEnd, animate, durationMs, className = "bg-purple-500" }: ProgressBarProps) {
   const percent = Math.min(100, Math.max(0, value));
 
   return (
@@ -15,8 +20,16 @@ export default function ProgressBar({ value, className = "bg-purple-500" }: Prog
       aria-valuemax={100}
     >
       <div
-        className={`h-full rounded-full transition-[width] duration-500 ease-out ${className}`}
-        style={{ width: `${percent}%` }}
+        onTransitionEnd={onTransitionEnd}
+        className={cn(
+          "h-full rounded-full",
+          className,
+          animate && "transition-[width] ease-out"
+        )}
+        style={{ 
+          width: `${percent}%`,
+          transitionDuration: animate ? `${durationMs}ms` : "0ms"
+         }}
       />
     </div>
   );

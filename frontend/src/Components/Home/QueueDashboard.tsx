@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import QueueCard from "./QueueCard";
-import { type UserRating, type Tier, type CanQueue, type Job } from "../../util/NetworkModels";
+import { type UserRating, type Tier, type CanQueue, type Job, type TierData } from "../../util/NetworkModels";
 import { api, waitForJob } from "../../util/helpers";
 import { Button, Field, Fieldset, Input, Label, Legend } from "@headlessui/react";
 import { MessageCircleDashedCheck } from "lucide-react";
@@ -26,12 +26,12 @@ export default function QueueDashboard() {
 
         Promise.all([
             api<UserRating[]>("/users/me/ratings"),
-            api<Tier[]>("/info/tiers"),
+            api<TierData>("/info/tiers"),
             api<CanQueue>("/users/me/can-queue")
         ])
         .then(([ratings, tiers, canQueue]) => {
             setRatings(ratings);
-            setTiers(tiers);
+            setTiers(tiers.tiers);
             setCanQueue(canQueue)
         })
         .catch(err => setError(err.message))

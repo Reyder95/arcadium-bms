@@ -82,9 +82,8 @@ def resolve_match(db, match_id: int, score: dict | None) -> dict:
     match.status = MatchStatus.RESOLVED
     match.result = MatchResult.WIN if won else MatchResult.LOSS
     match.end_time = datetime.now(timezone.utc)
-    #match.player_mmr_after = player.rating
-    #match.player.display_after = player.display_rating
-    #match.chart_rating_after = chart.rating
+    match.player_display_after = player.display_rating
+    match.chart_rating_after = chart.rating
     # score evidence fields maybe
 
     db.commit()

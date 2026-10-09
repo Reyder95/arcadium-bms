@@ -30,6 +30,10 @@ TIERS = [
 
 DIVISIONS = 5
 
+ELO_BASE = 100
+ELO_PER_LEVEL = 100
+ELO_FLOOR = 100
+
 def calculate_division(elo, index):
     if index == len(TIERS) - 1:
         return None
@@ -56,7 +60,7 @@ def rank_for(elo):
         }
 
 def sieg_to_elo(sieg):
-    return max(100, 100 + 100 * sieg)
+    return max(ELO_FLOOR, ELO_BASE + ELO_PER_LEVEL * sieg)
 
 # --- GLICKO2 FUNCTIONS ---
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import QueueCard from "../Components/Home/QueueCard";
-import type { CanQueue, Tier, UserRating } from "../util/NetworkModels";
+import type { CanQueue, Tier, TierData, UserRating } from "../util/NetworkModels";
 import { api } from "../util/helpers";
 import { useParams } from "react-router";
 
@@ -20,12 +20,12 @@ export default function MatchPrep() {
 
         Promise.all([
             api<UserRating[]>(`/users/me/ratings/${game}/${playtype}/${ladder}`),
-            api<Tier[]>("/info/tiers"),
+            api<TierData>("/info/tiers"),
             api<CanQueue>("/users/me/can-queue")
         ])
         .then(([rating, tiers, canQueue]) => {
             setRating(rating);
-            setTiers(tiers);
+            setTiers(tiers.tiers);
             setCanQueue(canQueue)
             console.log(tiers);
         })
