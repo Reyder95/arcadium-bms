@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,10 +21,9 @@ def enqueue_job(db: Session, user_id: int, job_type: str, payload: dict | None =
     if existing:
         return existing
 
-    job = Job(user_id=user_id, type=job_type, payload=payload, run_after=run_after if not None else func.now())
+    job = Job(user_id=user_id, type=job_type, payload=payload, run_after=run_after if run_after is not None else datetime.now(timezone.utc))
     db.add(job)
     db.flush()
-    db.refresh(job)
     return job
 
 # For specific jobs that need to be enqueued without an endpoint
@@ -37,3 +36,6 @@ def enqueue_match_final_check(db, user_id: int, match_id: int, match_cutoff: dat
 
 def enqueue_match_pre_submission(db, user_id: int, match_id: int) -> Job:
     return enqueue_job(db, user_id, "match_pre_submission", {"matchId": match_id})
+
+def enqueue_match_forfeit(db, user_id: int, match_id: int) -> Job:
+    return enqueue_job(db, user_id, "match_forfeit", {"matchId": match_id})

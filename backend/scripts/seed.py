@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
 
-from app.db import SessionLocal, engine
+from app.core.db import SessionLocal, engine
 from app.models import Base, Chart, ChartTableLevel, ChartRating
 from app.ratings import DEFAULT_VOLATILITY, SEED_RD
 

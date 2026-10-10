@@ -1,11 +1,9 @@
 from fastapi import APIRouter
 
-from app.db import DbSession
-from app.util.helpers import get_standing, get_active_match_by_userid
-from app.util.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser, DbSession
+from app.services.match import get_standing, get_active_match_by_userid
+
 from app.schemas.match import MatchOut
-
-
 from app.schemas.auth import UserRatingOut
 
 

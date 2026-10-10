@@ -4,7 +4,16 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from app.schemas.auth import UserOut
 from app.schemas.chart import ChartOut
 
-from app.util.enums import MatchResult, MatchStatus, MatchType
+from app.core.enums import MatchResult, MatchStatus, MatchType, ClearTypes
+
+class MatchScoreOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    lamp: ClearTypes
+    grade: str
+    percent: float | None
+    bp: int | None
 
 class MatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,6 +35,7 @@ class MatchOut(BaseModel):
     player_display_after: float | None
     chart_rating_before: float | None
     chart_rating_after: float | None
+    score: MatchScoreOut | None
     start_time: datetime
     cutoff_time: datetime
     end_time: datetime | None

@@ -3,17 +3,14 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db import get_db, DbSession
-from app.models import User, UserSession, Match
-from app.util.helpers import get_standing
-from app.util.dependencies import COOKIE_NAME, start_session, get_current_user, CurrentUser
-from app.util.enums import MatchResult, MatchType
+from app.core.db import get_db
+from app.models import User, UserSession
+from app.api.dependencies import COOKIE_NAME, get_current_user, set_session_cookie
 from app.job.enqueue import enqueue_tachi_seed
 from app.schemas.job import JobOut
-from app.util.security import hash_password, hash_token, verify_password
+from app.core.security import hash_password, hash_token, verify_password
 
-from app.schemas.auth import UserOut, RegisterIn, LoginIn, UserRatingOut
-from app.schemas.match import MatchDataOut
+from app.schemas.auth import UserOut, RegisterIn, LoginIn
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,7 +35,7 @@ def register(body: RegisterIn, response: Response, db: Session = Depends(get_db)
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Username is taken")
 
-    start_session(db, user, response)
+    set_session_cookie(db, user, response)
     user.last_login_at = func.now()
     db.commit()
     db.refresh(user)
@@ -58,7 +55,7 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
     if new_hash:
         user.password_hash = new_hash
 
-    start_session(db, user, response)
+    set_session_cookie(db, user, response)
     user.last_login_at = func.now()
     db.commit()
     db.refresh(user)

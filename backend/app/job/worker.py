@@ -2,7 +2,7 @@ import time
 
 from sqlalchemy import func, select
 
-from app.db import SessionLocal
+from app.core.db import SessionLocal
 from app.job.handlers import HANDLERS, JobError
 from app.models import Job
 

@@ -1,12 +1,16 @@
+import re
 import unicodedata
-from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator, StringConstraints
+from typing import Annotated
 
-from app.util.dependencies import DISPLAY_NAME_RE
+DISPLAY_NAME_RE = re.compile(r"^[\w .\-'!?~★☆]{1,32}$")
+
+DisplayName = Annotated[str, StringConstraints(pattern=r"^[\w .\-'!?~★☆]{1,32}$")]
 
 class RegisterIn(BaseModel):
     username: str = Field(pattern=r"^[A-Za-z0-9_]{3,20}$")
     email: EmailStr
-    display_name: str | None = None
+    display_name: DisplayName
     password: str = Field(min_length=8, max_length=128)
 
     @field_validator("display_name")

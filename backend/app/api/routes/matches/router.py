@@ -1,17 +1,14 @@
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select, func
 from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
-from app.db import DbSession
-from app.util.enums import CancelReason, MatchStatus, MatchResult, MatchType
-from app.models import Match, UserAvoidedChart, User, ChartRating
-from app.util.dependencies import CurrentUser
-from app.util.helpers import create_match_helper, get_active_match, get_active_match_by_userid, calculate_pt_gain_and_loss
-from app.job.enqueue import enqueue_match_pre_submission
-from app.job.handlers import resolve_match
-from app.ratings import GlickoRating, update
+from app.core.enums import CancelReason, MatchStatus, MatchType
+from app.models import Match, UserAvoidedChart, User
+from app.services.match import calculate_stakes, get_active_match_by_userid, create_match
+from app.api.dependencies import CurrentUser, DbSession
+from app.job.enqueue import enqueue_match_pre_submission, enqueue_match_forfeit
+from app.core.errors import SeedPending
 
 from app.schemas.match import MatchOut, MatchWithStakesOut
 
@@ -26,30 +23,39 @@ def get_match_by_id(db: DbSession, match_id: int):
     
     user = db.get(User, match.user_id)
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, match)
+    pt_gain, pt_loss = calculate_stakes(db, user, match)
 
     base = MatchOut.model_validate(match)
 
     return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
 
 @router.post("/create", response_model=MatchWithStakesOut, status_code=status.HTTP_201_CREATED)
-def create_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser, elo: Annotated[float | None, Query(ge=100, le=2050)] = None, type: MatchType = MatchType.COMPETITIVE):
-    active_match = get_active_match(db, user)
+def start_match(game: str, playtype: str, ladder: str, db: DbSession, user: CurrentUser, elo: Annotated[float | None, Query(ge=100, le=2050)] = None, type: MatchType = MatchType.COMPETITIVE):
+    if not user.tachi_api_key or user.tachi_api_key == "":
+        raise HTTPException(status.HTTP_409_CONFLICT, "No Tachi key found. Please set up your Tachi API key!")
+
+    active_match = get_active_match_by_userid(db, user.id)
 
     if active_match is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "You already have an active match!")
-    new_match = create_match_helper(game, playtype, ladder, type, elo, db, user)
-    db.commit()
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, new_match)
+    try:
+        new_match = create_match(db, user, game, playtype, ladder, type, elo)
+    except SeedPending:
+        db.commit()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Your rating is still being set up!")
+
+    pt_gain, pt_loss = calculate_stakes(db, user, new_match)
 
     base = MatchOut.model_validate(new_match)
+
+    db.commit()
 
     return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
 
 @router.post("/submit")
 def submit_active_match(db: DbSession, user: CurrentUser):
-    active_match = get_active_match(db, user)
+    active_match = get_active_match_by_userid(db, user.id)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
@@ -62,7 +68,7 @@ def submit_active_match(db: DbSession, user: CurrentUser):
 
 @router.post("/skip", response_model=MatchWithStakesOut, status_code=status.HTTP_201_CREATED)
 def skip_active_match(db: DbSession, user: CurrentUser):
-    active_match = get_active_match(db, user)
+    active_match = get_active_match_by_userid(db, user.id)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
@@ -80,9 +86,9 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     db.flush()
 
-    new_match = create_match_helper(active_match.game, active_match.playtype, active_match.ladder, active_match.type, active_match.search_elo, db, user, [a.chart_id for a in user.avoided_charts])
+    new_match = create_match(db, user, active_match.game, active_match.playtype, active_match.ladder, active_match.type, active_match.search_elo, [a.chart_id for a in user.avoided_charts])
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, new_match)
+    pt_gain, pt_loss = calculate_stakes(db, user, new_match)
 
     db.commit()
 
@@ -90,22 +96,23 @@ def skip_active_match(db: DbSession, user: CurrentUser):
 
     return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
 
-@router.post("/forfeit", response_model=MatchWithStakesOut, status_code=status.HTTP_200_OK)
+@router.post("/forfeit", status_code=status.HTTP_200_OK)
 def forfeit_active_match(db: DbSession, user: CurrentUser):
-    active_match = get_active_match(db, user)
+    active_match = get_active_match_by_userid(db, user.id)
 
     if active_match is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active match!")
 
-    pt_gain, pt_loss = calculate_pt_gain_and_loss(db, user, active_match)
+    if active_match.forfeited_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Match is already being forfeited!")
 
-    resolve_match(db, active_match.id, None)
+    active_match.forfeited_at = datetime.now(timezone.utc)
+
+    enqueue_match_forfeit(db, user.id, active_match.id)
 
     db.commit()
 
-    base = MatchOut.model_validate(active_match)
-
-    return MatchWithStakesOut(**base.model_dump(), potential_gain=pt_gain, potential_loss=pt_loss)
+    return {"message": "Submitted Forfeit!"}
 
 @router.get("/{user_id}/table", response_class=HTMLResponse)
 def serve_user_table_index(db: DbSession, user_id: int):

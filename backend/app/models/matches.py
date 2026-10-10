@@ -10,7 +10,8 @@ from sqlalchemy import DateTime, Index, ForeignKey, String, text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.util.enums import MatchStatus, MatchResult, enum_check, str_enum, MatchType
+from app.core.enums import MatchStatus, MatchResult, MatchType, ClearTypes
+from app.models.base import enum_check, str_enum
 
 # Match Model -- Players compete in matches. One player versus a chart. Each player can only have one active match at a time across all ladders.
 
@@ -52,6 +53,7 @@ class Match(Base):
     player_display_after: Mapped[float | None]
     chart_rating_before: Mapped[float | None]
     chart_rating_after: Mapped[float | None]
+    forfeited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     start_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True)
     )
@@ -64,3 +66,19 @@ class Match(Base):
 
     user: Mapped["User"] = relationship(back_populates="matches")
     chart: Mapped["Chart"] = relationship(back_populates="matches")
+    score: Mapped["MatchScore | None"] = relationship(back_populates="match", uselist=False)
+
+class MatchScore(Base):
+    __tablename__ = "match_scores"
+    __table_args__ = (enum_check("lamp", ClearTypes, "ck_match_scores_lamp"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(
+        ForeignKey("matches.id"), index=True
+    )
+    lamp: Mapped[ClearTypes] = mapped_column(str_enum(ClearTypes))
+    grade: Mapped[str] = mapped_column(String(8))
+    percent: Mapped[float | None]
+    bp: Mapped[int | None]
+
+    match: Mapped["Match"] = relationship(back_populates="score")

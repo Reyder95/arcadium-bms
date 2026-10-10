@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func;
 
-from app.util.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser
 from app.models import Job
-from app.db import DbSession
+from app.api.dependencies import DbSession
 from app.job.enqueue import enqueue_job
 
 from app.schemas.job import JobOut

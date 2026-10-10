@@ -3,7 +3,7 @@ from typing import Annotated
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, Session
 
-from app.db import get_db
+from app.core.db import get_db
 from app.models import Chart, ChartRating
 
 from app.schemas.chart import ChartOut
